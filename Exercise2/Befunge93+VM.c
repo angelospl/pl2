@@ -6,7 +6,7 @@
 #define N 25
 #define M 80
 #define STACKLENGTH 20
-#define HEAPLENGTH 24
+#define HEAPLENGTH 2
 
 //-------------------USEFUL STRUCTS--------------------//
 typedef enum bef_type {Pointer,Integer} bef_type;
@@ -163,7 +163,7 @@ void sweep () {
   heap_iter=heap;
   while (heap_iter!=NULL) {
     if (isMarked(heap_iter)==1) {
-      printf("Einai markarismeno %lld\n",convert_to_62(heap_iter->value.head));
+      //printf("Einai markarismeno %lld\n",convert_to_62(heap_iter->value.head));
       heap_iter->value.head&=0x8000000000000000;  //unmark
     }
     else {
@@ -176,6 +176,7 @@ void sweep () {
     heap_iter=freelist;
     freelist=freelist->value.tail;
     free(heap_iter);
+    heap_elements--;
     printf("mpika\n");
   }
 }
@@ -184,20 +185,18 @@ void sweep () {
 void insert (signed long long int hd,heap_node* tl){
   cons_cell* new_node;
   heap_node* new_heap_node;
-  if (heap_elements<pow(2,HEAPLENGTH)){
-    new_node=(cons_cell*)malloc(sizeof(cons_cell));
-    hd=convert_to_62(hd);
-    new_node->head=hd;
-    new_node->tail=tl;
-    new_heap_node=(heap_node*)malloc(sizeof(heap_node));
-    new_heap_node->value=*new_node;
-    new_heap_node->next=heap;
-    heap=new_heap_node;
-    heap_elements++;
-  }
-  else {
-    //garbage collection maybe
-    ;
+  new_node=(cons_cell*)malloc(sizeof(cons_cell));
+  hd=convert_to_62(hd);
+  new_node->head=hd;
+  new_node->tail=tl;
+  new_heap_node=(heap_node*)malloc(sizeof(heap_node));
+  new_heap_node->value=*new_node;
+  new_heap_node->next=heap;
+  heap=new_heap_node;
+  heap_elements++;
+  if (heap_elements>=pow(2,HEAPLENGTH)){
+    mark();
+    sweep();
   }
 }
 
