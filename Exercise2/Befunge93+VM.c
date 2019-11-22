@@ -106,7 +106,15 @@ void insert (signed long long int hd,cons_cell* tl){
   }
 }
 
-
+void empty_heap () {
+  heap_node* next;
+  while (heap!=NULL) {
+    next=heap->next;
+    free(heap);
+    heap=next;
+    heap_elements--;
+  }
+}
 
 //--------------------TORUS HANDLING FUNCTIONS-------------//
 void read_torus(char const *arg) {
@@ -502,6 +510,7 @@ void run (){
         //printf("\nTelos kalo ola kala\n");
         //print_torus();
         empty_stack();
+        empty_heap();
         exit(0);
       case 'z':
       stringmode_on_label:
