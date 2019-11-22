@@ -9,14 +9,17 @@
 #define HEAPLENGTH 24
 
 //-------------------USEFUL STRUCTS--------------------//
+typedef enum bef_type {Pointer,Integer} bef_type;
+
 typedef struct node {
   signed long long int value;
+  bef_type type;
   struct node* previous;
 } node;
 
 typedef struct cons_cell {
   signed long long int head;
-  struct cons_cell* tail;
+  struct heap_node* tail;
 } cons_cell;
 
 typedef struct heap_node {
@@ -32,12 +35,12 @@ typedef struct prog {
 typedef enum direction{up,right,down,left} direction;
 
 //------------------GLOBAL VARIABLES--------------------//
-node* stack; //stack is a pointer to the head of the stack
+node* stack,*iter; //stack is a pointer to the head of the stack
 unsigned long long int stack_elements;  //counter of stack elements
 unsigned char torus[N][M]; //torus is a 2-dimensional 80x25 character array
 program_counter pc; //program counter is 2 integers that show the pc's location at the torus
 direction pc_movement;  //the direction pc is going
-heap_node* heap; //heap is a pointer to a heap_node. We Cannot
+heap_node* heap,*heap_iter,*freelist; //heap is a pointer to a heap_node. We Cannot
             //have access to heap elements without having a pointer to them
 unsigned long long int heap_elements; //counter of heap elements
 
@@ -64,12 +67,13 @@ signed long long int pop() {
 }
 
 //pushes a signed long long int to the stack
-void push (signed long long int x) {
+void push (signed long long int x,bef_type typ) {
   node* new_elem;
   if (stack_elements<pow(2,STACKLENGTH)) {
     new_elem=(node*) malloc(sizeof(node));
     new_elem->value=x;
     new_elem->previous=stack;
+    new_elem->type=typ;
     stack=new_elem;
     stack_elements++;
   }
@@ -89,39 +93,100 @@ void empty_stack(){
 //------------------------BIT FUNCTIONS----------------------//
 
 long long int convert_to_64 (long long int x){
-  if ((x&0x4000000000000000)>>62==1) {  //if 63bit is negative
-    x^=0x7fffffffffffffff;   //complement of 1
-    x|=0x1;          //add 1. all together complement of 2
-    x&=0x7fffffffffffffff;   //keep 63 of 64 bits
+  if ((x&0x2000000000000000)>>61==1) {  //if 62bit is negative
+    x^=0x3fffffffffffffff;   //complement of 1
+    x++;                   //add 1. all together complement of 2
+    x&=0x3fffffffffffffff;   //keep 63 of 64 bits
     x^=0xffffffffffffffff;   //complement of 1 for 64 bits
-    x|=0x1;          //add 1. all together complement of 2. We converted 63 signed to 64 signed
+    x++;                 //add 1. all together complement of 2. We converted 63 signed to 64 signed
   }
   return x;
 }
 
-long long int convert_to_63 (long long int x){
+long long int convert_to_62 (long long int x){
   if (x < 0) {
     x^=0xffffffffffffffff;   //complement of 1
-    x|=0x1;          //add 1. all together complement of 2
-    x&=0x7fffffffffffffff;   //keep 63 of 64 bits
-    x^=0x7fffffffffffffff;   //complement of 1 for 63 bits
-    x|=0x1;          //add 1. all together complement of 2. We converted 64 signed to 63 signed
-    if ((x&0xc000000000000000)>>63!=0) {
-      printf("Number is bigger than 63 bits\n" );
-      exit(1);
-    }
+    x++;                      //add 1. all together complement of 2
+    x&=0x3fffffffffffffff;   //keep 62 of 64 bits
+    x^=0x3fffffffffffffff;   //complement of 1 for 63 bits
+    x++;                      //add 1. all together complement of 2. We converted 64 signed to 63 signed
   }
-  x&=0x7fffffffffffffff;   //we keep the 63 bits of the 64 int
+  if ((x&0xc000000000000000)>>62!=0) {
+    printf("Number is bigger than 62 bits\n");
+    exit(1);
+  }
+  x&=0x3fffffffffffffff;   //we keep the 62 bits of the 64 int
   return x;
+}
+
+//-----------------------GARBAGE COLLECTION------------------//
+
+void DFS (heap_node* x){
+  if (x==NULL) {
+    return ;
+  }
+  long long int firstbits=x->value.head;
+  firstbits&=0xc000000000000000;            //take 2 first bits
+  firstbits=firstbits>>63;                  //first bit
+  if (firstbits==0) {                       //0 means not marked
+    firstbits=0x8000000000000000;           //1 to the 64-bit
+    x->value.head=(x->value.head&0x7fffffffffffffff)|firstbits; // we make 64bit 1 and the rest as is
+    DFS(x->value.tail);
+  }
+}
+
+
+void mark (){
+  heap_node* heap_elem;
+  iter=stack;
+  while (iter!=NULL) {
+    if (iter->type==Pointer) {
+      heap_elem=(heap_node*)iter->value;
+      DFS(heap_elem);
+    }
+    iter=iter->previous;
+  }
+}
+
+//if marked returns 1 else returns 0. Checks MSB.
+int isMarked(heap_node* x){
+  long long int firstbit;
+  firstbit=(x->value.head&0x8000000000000000)>>63;
+  if (firstbit==1) {
+    return 1;
+  }
+  return 0;
+}
+
+void sweep () {
+  freelist=NULL;
+  heap_iter=heap;
+  while (heap_iter!=NULL) {
+    if (isMarked(heap_iter)==1) {
+      printf("Einai markarismeno %lld\n",convert_to_62(heap_iter->value.head));
+      heap_iter->value.head&=0x8000000000000000;  //unmark
+    }
+    else {
+      heap_iter->value.tail=freelist;
+      freelist=heap_iter;
+    }
+    heap_iter=heap_iter->next;
+  }
+  while (freelist!=NULL) {
+    heap_iter=freelist;
+    freelist=freelist->value.tail;
+    free(heap_iter);
+    printf("mpika\n");
+  }
 }
 
 //------------------------HEAP FUNCTIONS--------------------//
-void insert (signed long long int hd,cons_cell* tl){
+void insert (signed long long int hd,heap_node* tl){
   cons_cell* new_node;
   heap_node* new_heap_node;
   if (heap_elements<pow(2,HEAPLENGTH)){
     new_node=(cons_cell*)malloc(sizeof(cons_cell));
-    hd=convert_to_63(hd);
+    hd=convert_to_62(hd);
     new_node->head=hd;
     new_node->tail=tl;
     new_heap_node=(heap_node*)malloc(sizeof(heap_node));
@@ -271,10 +336,9 @@ void run (){
     else if (i==126) label_tab[i]=&&input_char_label; // ~
     else label_tab[i]=&&def_label;
   }
-  signed long long int val1,val2,x,y,value,cond;
-  cons_cell* cell_ptr;
-  heap_node* heap_ptr;
-  int rnd,integ;
+  signed long long int val1,val2,x,y,value,cond,integ;
+  heap_node* heap_ptr,*cell_ptr;
+  int rnd;
   unsigned char c;
   pc.i=0;
   pc.j=0;
@@ -287,19 +351,19 @@ void run (){
         pc_move();
         x=pop();
         y=pop();
-        push(x+y);
+        push(x+y,Integer);
         NEXT_INSTRUCTION;
       case '-':
       minus_label:
         pc_move();
         val2=pop();
         val1=pop();
-        push(val1-val2);
+        push(val1-val2,Integer);
         NEXT_INSTRUCTION;
       case '*':
       mul_label:
         pc_move();
-        push(pop()*pop());
+        push(pop()*pop(),Integer);
         NEXT_INSTRUCTION;
       case '/':
       div_label:
@@ -308,9 +372,9 @@ void run (){
         pc_move();
         if (val2==0) {  //according to specifications the user chooses the result
           scanf("%lld\n",&val2 );
-          push(val2);
+          push(val2,Integer);
         }
-        else push(val1/val2);
+        else push(val1/val2,Integer);
         NEXT_INSTRUCTION;
       case '%':
       mod_label:
@@ -319,23 +383,23 @@ void run (){
         pc_move();
         if (val2==0) {
           scanf("%lld\n",&val2 ); //according to specifications the user chooses the result
-          push(val2);
+          push(val2,Integer);
         }
-        else push(val1 % val2);
+        else push(val1 % val2,Integer);
         NEXT_INSTRUCTION;
       case '!':
       not_label:
         pc_move();
-        if (pop()==0) push(1);
-        else push(0);
+        if (pop()==0) push(1,Integer);
+        else push(0,Integer);
         NEXT_INSTRUCTION;
       case '`':
       greater_label:
         pc_move();
         val2=pop();
         val1=pop();
-        if (val1 > val2) push(1);
-        else push(0);
+        if (val1 > val2) push(1,Integer);
+        else push(0,Integer);
         NEXT_INSTRUCTION;
       case '>':
       right_label:
@@ -387,16 +451,16 @@ void run (){
       dup_label:
         pc_move();
         x=pop();
-        push(x);
-        push(x);
+        push(x,Integer);
+        push(x,Integer);
         NEXT_INSTRUCTION;
       case '\\':
       swap_label:
         pc_move();
         val2=pop();
         val1=pop();
-        push(val2);
-        push(val1);
+        push(val2,Integer);
+        push(val1,Integer);
         NEXT_INSTRUCTION;
       case '$':
       pop_label:
@@ -432,12 +496,12 @@ void run (){
           || val1==60 || val1==62 || val1==63 || val1==64
           || val1==92 || val1==94 || val1==95 || val1==96 || val1==103
           || val1==112 || val1==118 || val1==124 || val1==126) {
-            push((long int)val1);
+            push((long long int)val1,Integer);
           }
-          else push(torus[x][y]);
+          else push(torus[x][y],Integer);
         }
         else {      //if x y is out of bounds push(0) .. WIKIPEDIA EUXARISTO EXO OI MIZEROI APO DW
-          push(0);
+          push(0,Integer);
         }
         pc_move();
         NEXT_INSTRUCTION;
@@ -455,90 +519,92 @@ void run (){
         NEXT_INSTRUCTION;
       case 'c':               //pops y x creates cons cell (x,y) and pushes the address to the stack
       cons_label:
-        cell_ptr=(cons_cell*)pop();
+        cell_ptr=(heap_node*)pop();
         x=pop();
         insert(x,cell_ptr);
-        push((signed long long int) heap);
+        push((signed long long int) heap,Pointer);
         pc_move();
         NEXT_INSTRUCTION;
       case 'h':
       head_label:
         heap_ptr=(heap_node*)pop();
-        push(convert_to_64(heap_ptr->value.head));
+        push(convert_to_64(heap_ptr->value.head),Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case 't':
       tail_label:
           heap_ptr=(heap_node*)pop();
-          push((signed long long int)heap_ptr->value.tail);
+          push((signed long long int)heap_ptr->value.tail,Pointer);
           pc_move();
           NEXT_INSTRUCTION;
       case '&':
       input_int_label:
-        scanf("%d", &integ);
-        push((signed long long int) integ);
+        scanf("%lld", &integ);
+        push((signed long long int) integ,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '~':
       input_char_label:
         scanf("%c",&c );
-        push((signed long long int) c);
+        push((signed long long int) c,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '0':
       num0_label:
-        push(0);
+        push(0,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '1':
       num1_label:
-        push(1);
+        push(1,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '2':
       num2_label:
-        push(2);
+        push(2,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '3':
       num3_label:
-        push(3);
+        push(3,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '4':
       num4_label:
-        push(4);
+        push(4,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '5':
       num5_label:
-        push(5);
+        push(5,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '6':
       num6_label:
-        push(6);
+        push(6,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '7':
       num7_label:
-        push(7);
+        push(7,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '8':
       num8_label:
-        push(8);
+        push(8,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '9':
       num9_label:
-        push(9);
+        push(9,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case '@':
       end_label:
         //printf("\nTelos kalo ola kala\n");
         //print_torus();
+        mark();
+        sweep();
         empty_stack();
         empty_heap();
         exit(0);
@@ -546,7 +612,7 @@ void run (){
       stringmode_on_label:
         pc_move();    //eixe meinei o pc sto stringmodeoff
         if (torus[pc.i][pc.j]!='"') {
-          push((long int) torus[pc.i][pc.j]);
+          push((long int) torus[pc.i][pc.j],Integer);
           goto stringmode_on_label;
         }
         else {
