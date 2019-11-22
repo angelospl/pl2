@@ -86,12 +86,42 @@ void empty_stack(){
 }
 
 
+//------------------------BIT FUNCTIONS----------------------//
+
+long long int convert_to_64 (long long int x){
+  if ((x&0x4000000000000000)>>62==1) {  //if 63bit is negative
+    x^=0x7fffffffffffffff;   //complement of 1
+    x|=0x1;          //add 1. all together complement of 2
+    x&=0x7fffffffffffffff;   //keep 63 of 64 bits
+    x^=0xffffffffffffffff;   //complement of 1 for 64 bits
+    x|=0x1;          //add 1. all together complement of 2. We converted 63 signed to 64 signed
+  }
+  return x;
+}
+
+long long int convert_to_63 (long long int x){
+  if (x < 0) {
+    x^=0xffffffffffffffff;   //complement of 1
+    x|=0x1;          //add 1. all together complement of 2
+    x&=0x7fffffffffffffff;   //keep 63 of 64 bits
+    x^=0x7fffffffffffffff;   //complement of 1 for 63 bits
+    x|=0x1;          //add 1. all together complement of 2. We converted 64 signed to 63 signed
+    if ((x&0xc000000000000000)>>63!=0) {
+      printf("Number is bigger than 63 bits\n" );
+      exit(1);
+    }
+  }
+  x&=0x7fffffffffffffff;   //we keep the 63 bits of the 64 int
+  return x;
+}
+
 //------------------------HEAP FUNCTIONS--------------------//
 void insert (signed long long int hd,cons_cell* tl){
   cons_cell* new_node;
   heap_node* new_heap_node;
   if (heap_elements<pow(2,HEAPLENGTH)){
     new_node=(cons_cell*)malloc(sizeof(cons_cell));
+    hd=convert_to_63(hd);
     new_node->head=hd;
     new_node->tail=tl;
     new_heap_node=(heap_node*)malloc(sizeof(heap_node));
@@ -434,7 +464,7 @@ void run (){
       case 'h':
       head_label:
         heap_ptr=(heap_node*)pop();
-        push(heap_ptr->value.head);
+        push(convert_to_64(heap_ptr->value.head));
         pc_move();
         NEXT_INSTRUCTION;
       case 't':
