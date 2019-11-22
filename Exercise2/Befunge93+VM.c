@@ -43,6 +43,7 @@ direction pc_movement;  //the direction pc is going
 heap_node* heap,*heap_iter,*freelist; //heap is a pointer to a heap_node. We Cannot
             //have access to heap elements without having a pointer to them
 unsigned long long int heap_elements; //counter of heap elements
+bef_type pop_ret;
 
 //-----------------STACK IMPLEMENTATION----------------//
 //checks if stack is empty
@@ -56,6 +57,7 @@ signed long long int pop() {
   if (!isEmpty()) {
     signed long long int ret=stack->value;
     node* next_head= stack->previous;
+    pop_ret=stack->type;
     free (stack);
     stack=next_head;
     stack_elements--;
@@ -450,8 +452,8 @@ void run (){
       dup_label:
         pc_move();
         x=pop();
-        push(x,Integer);
-        push(x,Integer);
+        push(x,pop_ret);
+        push(x,pop_ret);
         NEXT_INSTRUCTION;
       case '\\':
       swap_label:
