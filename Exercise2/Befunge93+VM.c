@@ -19,12 +19,13 @@ typedef struct node {
 } node;
 
 
-typedef struct heap_node {
-  signed long long int head;
-  struct heap_node* tail;
-  uint8_t marked;
-  uint8_t generation;
-  struct heap_node* next;
+typedef struct heap_node {    //heap_node is a double linked list,
+  signed long long int head;  //the head of the cons cell
+  struct heap_node* tail;     //the tail of the cons cell
+  uint8_t marked;             //marked by garbage collection
+  uint8_t generation;         //will be used for generational algorithm
+  struct heap_node* next;     //the pointers the double linking
+  struct heap_node* previous;
 } heap_node;
 
 typedef struct prog {
@@ -40,10 +41,12 @@ unsigned long long int stack_elements;  //counter of stack elements
 unsigned char torus[N][M]; //torus is a 2-dimensional 80x25 character array
 program_counter pc; //program counter is 2 integers that show the pc's location at the torus
 direction pc_movement;  //the direction pc is going
-heap_node* heap,*freelist; //heap is a pointer to a heap_node. We Cannot
-            //have access to heap elements without having a pointer to them
+heap_node* heap,*freelist;  //heap is a pointer to a heap_node. We Cannot
+                            //have access to heap elements without having a pointer to them
+                            //freelist is the list of the nodes to be garbage collected
 unsigned long long int heap_elements; //counter of heap elements
-bef_type pop_ret;
+bef_type pop_ret;           //stores the type of elements popped from the stack. helps garbage collector
+                            //find root nodes
 
 //-----------------STACK IMPLEMENTATION----------------//
 //checks if stack is empty
@@ -85,6 +88,7 @@ void push (signed long long int x,bef_type typ) {
   }
 }
 
+//pops all elements from the stack
 void empty_stack(){
   while(!isEmpty()) {
     pop();
@@ -94,6 +98,7 @@ void empty_stack(){
 
 //-----------------------GARBAGE COLLECTION------------------//
 
+//dfs traversal to the nodes of a tree starting from the root nodes
 void DFS (heap_node* x){
   if (x==NULL) {
     return ;
@@ -104,7 +109,7 @@ void DFS (heap_node* x){
   }
 }
 
-
+//iterates through the stack finds pointers and calls dfs on them
 void mark (){
   heap_node* heap_elem;
   node* iter=stack;
@@ -117,6 +122,7 @@ void mark (){
   }
 }
 
+//sweeps all garbage marked by the mark function
 void sweep () {
   freelist=NULL;
   heap_node* heap_iter=heap;
@@ -134,6 +140,13 @@ void sweep () {
   while (freelist!=NULL) {
     heap_iter=freelist;
     freelist=freelist->tail;
+    if (heap_iter->next!=NULL) {                      //pointers have to point to the correct elements after
+      heap_iter->next->previous=heap_iter->previous;  //the collection of a garbage from the heap
+    }
+    if (heap_iter->previous!=NULL) {
+      heap_iter->previous->next=heap_iter->next;
+    }
+    else heap=heap_iter->next;
     free(heap_iter);
     heap_elements--;
     //printf("mpika\n");
@@ -142,22 +155,25 @@ void sweep () {
 }
 
 //------------------------HEAP FUNCTIONS--------------------//
+
+//inserts to the top of the heap a cons cell (hd,tl). it is unmarked and generation is 0
 void insert (signed long long int hd,heap_node* tl){
   heap_node* new_heap_node;
   new_heap_node=(heap_node*)malloc(sizeof(heap_node));
   new_heap_node->head=hd;
   new_heap_node->tail=tl;
+  new_heap_node->previous=NULL;
   new_heap_node->marked=0;
   new_heap_node->generation=0;
   new_heap_node->next=heap;
+  if (new_heap_node->next!=NULL) {
+    new_heap_node->next->previous=new_heap_node;
+  }
   heap=new_heap_node;
   heap_elements++;
-  if (heap_elements>=pow(2,HEAPLENGTH)){
-    mark();
-    sweep();
-  }
 }
 
+//not used garbage collector is called at the end of the program
 void empty_heap () {
   heap_node* next;
   while (heap!=NULL) {
@@ -483,6 +499,10 @@ void run (){
         x=pop();
         insert(x,cell_ptr);
         push((signed long long int) heap,Pointer);
+        if (heap_elements>=pow(2,HEAPLENGTH)){
+          mark();
+          sweep();
+        }
         pc_move();
         NEXT_INSTRUCTION;
       case 'h':
@@ -563,9 +583,9 @@ void run (){
       end_label:
         //printf("\nTelos kalo ola kala\n");
         //print_torus();
+        empty_stack();      //at the end we empty the stack and then we call the garbage collector
         mark();
         sweep();
-        empty_stack();
         //empty_heap();
         exit(0);
       case 'z':
