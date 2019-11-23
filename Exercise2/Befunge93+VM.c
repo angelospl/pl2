@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include<stdint.h>
 #include <math.h>
 #include "time.h"
 #define NEXT_INSTRUCTION goto *(void*)(label_tab[(int)(torus[pc.i][pc.j])])
 #define N 25
 #define M 80
 #define STACKLENGTH 20
-#define HEAPLENGTH 2
+#define HEAPLENGTH 24
 
 //-------------------USEFUL STRUCTS--------------------//
 typedef enum bef_type {Pointer,Integer} bef_type;
@@ -17,13 +18,12 @@ typedef struct node {
   struct node* previous;
 } node;
 
-typedef struct cons_cell {
-  signed long long int head;
-  struct heap_node* tail;
-} cons_cell;
 
 typedef struct heap_node {
-  cons_cell value;
+  signed long long int head;
+  struct heap_node* tail;
+  uint8_t marked;
+  uint8_t generation;
   struct heap_node* next;
 } heap_node;
 
@@ -35,12 +35,12 @@ typedef struct prog {
 typedef enum direction{up,right,down,left} direction;
 
 //------------------GLOBAL VARIABLES--------------------//
-node* stack,*iter; //stack is a pointer to the head of the stack
+node* stack; //stack is a pointer to the head of the stack
 unsigned long long int stack_elements;  //counter of stack elements
 unsigned char torus[N][M]; //torus is a 2-dimensional 80x25 character array
 program_counter pc; //program counter is 2 integers that show the pc's location at the torus
 direction pc_movement;  //the direction pc is going
-heap_node* heap,*heap_iter,*freelist; //heap is a pointer to a heap_node. We Cannot
+heap_node* heap,*freelist; //heap is a pointer to a heap_node. We Cannot
             //have access to heap elements without having a pointer to them
 unsigned long long int heap_elements; //counter of heap elements
 bef_type pop_ret;
@@ -92,55 +92,22 @@ void empty_stack(){
 }
 
 
-//------------------------BIT FUNCTIONS----------------------//
-
-long long int convert_to_64 (long long int x){
-  if ((x&0x2000000000000000)>>61==1) {  //if 62bit is negative
-    x^=0x3fffffffffffffff;   //complement of 1
-    x++;                   //add 1. all together complement of 2
-    x&=0x3fffffffffffffff;   //keep 63 of 64 bits
-    x^=0xffffffffffffffff;   //complement of 1 for 64 bits
-    x++;                 //add 1. all together complement of 2. We converted 63 signed to 64 signed
-  }
-  return x;
-}
-
-long long int convert_to_62 (long long int x){
-  if (x < 0) {
-    x^=0xffffffffffffffff;   //complement of 1
-    x++;                      //add 1. all together complement of 2
-    x&=0x3fffffffffffffff;   //keep 62 of 64 bits
-    x^=0x3fffffffffffffff;   //complement of 1 for 63 bits
-    x++;                      //add 1. all together complement of 2. We converted 64 signed to 63 signed
-  }
-  if ((x&0xc000000000000000)>>62!=0) {
-    printf("Number is bigger than 62 bits\n");
-    exit(1);
-  }
-  x&=0x3fffffffffffffff;   //we keep the 62 bits of the 64 int
-  return x;
-}
-
 //-----------------------GARBAGE COLLECTION------------------//
 
 void DFS (heap_node* x){
   if (x==NULL) {
     return ;
   }
-  long long int firstbits=x->value.head;
-  firstbits&=0xc000000000000000;            //take 2 first bits
-  firstbits=firstbits>>63;                  //first bit
-  if (firstbits==0) {                       //0 means not marked
-    firstbits=0x8000000000000000;           //1 to the 64-bit
-    x->value.head=(x->value.head&0x7fffffffffffffff)|firstbits; // we make 64bit 1 and the rest as is
-    DFS(x->value.tail);
+  if (x->marked==0) {                       //0 means not marked
+    x->marked=1;
+    DFS(x->tail);
   }
 }
 
 
 void mark (){
   heap_node* heap_elem;
-  iter=stack;
+  node* iter=stack;
   while (iter!=NULL) {
     if (iter->type==Pointer) {
       heap_elem=(heap_node*)iter->value;
@@ -150,49 +117,38 @@ void mark (){
   }
 }
 
-//if marked returns 1 else returns 0. Checks MSB.
-int isMarked(heap_node* x){
-  long long int firstbit;
-  firstbit=(x->value.head&0x8000000000000000)>>63;
-  if (firstbit==1) {
-    return 1;
-  }
-  return 0;
-}
-
 void sweep () {
   freelist=NULL;
-  heap_iter=heap;
+  heap_node* heap_iter=heap;
   while (heap_iter!=NULL) {
-    if (isMarked(heap_iter)==1) {
-      //printf("Einai markarismeno %lld\n",convert_to_62(heap_iter->value.head));
-      heap_iter->value.head&=0x8000000000000000;  //unmark
+    if (heap_iter->marked==1) {
+      heap_iter->marked=0;      //unmark
     }
     else {
-      heap_iter->value.tail=freelist;
+      heap_iter->tail=freelist;
       freelist=heap_iter;
     }
     heap_iter=heap_iter->next;
   }
+  heap_iter=NULL;
   while (freelist!=NULL) {
     heap_iter=freelist;
-    freelist=freelist->value.tail;
+    freelist=freelist->tail;
     free(heap_iter);
     heap_elements--;
-    printf("mpika\n");
+    //printf("mpika\n");
   }
+  heap_iter=NULL;
 }
 
 //------------------------HEAP FUNCTIONS--------------------//
 void insert (signed long long int hd,heap_node* tl){
-  cons_cell* new_node;
   heap_node* new_heap_node;
-  new_node=(cons_cell*)malloc(sizeof(cons_cell));
-  hd=convert_to_62(hd);
-  new_node->head=hd;
-  new_node->tail=tl;
   new_heap_node=(heap_node*)malloc(sizeof(heap_node));
-  new_heap_node->value=*new_node;
+  new_heap_node->head=hd;
+  new_heap_node->tail=tl;
+  new_heap_node->marked=0;
+  new_heap_node->generation=0;
   new_heap_node->next=heap;
   heap=new_heap_node;
   heap_elements++;
@@ -341,6 +297,7 @@ void run (){
   heap_node* heap_ptr,*cell_ptr;
   int rnd;
   unsigned char c;
+  bef_type typ1,typ2;
   pc.i=0;
   pc.j=0;
   while (1) {
@@ -459,9 +416,11 @@ void run (){
       swap_label:
         pc_move();
         val2=pop();
+        typ2=pop_ret;
         val1=pop();
-        push(val2,Integer);
-        push(val1,Integer);
+        typ1=pop_ret;
+        push(val2,typ2);
+        push(val1,typ1);
         NEXT_INSTRUCTION;
       case '$':
       pop_label:
@@ -529,13 +488,13 @@ void run (){
       case 'h':
       head_label:
         heap_ptr=(heap_node*)pop();
-        push(convert_to_64(heap_ptr->value.head),Integer);
+        push(heap_ptr->head,Integer);
         pc_move();
         NEXT_INSTRUCTION;
       case 't':
       tail_label:
           heap_ptr=(heap_node*)pop();
-          push((signed long long int)heap_ptr->value.tail,Pointer);
+          push((signed long long int)heap_ptr->tail,Pointer);
           pc_move();
           NEXT_INSTRUCTION;
       case '&':
@@ -607,7 +566,7 @@ void run (){
         mark();
         sweep();
         empty_stack();
-        empty_heap();
+        //empty_heap();
         exit(0);
       case 'z':
       stringmode_on_label:
