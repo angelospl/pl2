@@ -18,7 +18,6 @@ typedef enum {old,new} generation;
 typedef struct node {
   signed long long int value;
   bef_type type;
-  struct node* previous;
 } node;
 
 typedef struct heap_node {    //heap_node is a double linked list,
@@ -43,7 +42,7 @@ typedef struct prog {
 typedef enum direction{up,right,down,left} direction;
 
 //------------------GLOBAL VARIABLES--------------------//
-node* stack; //stack is a pointer to the head of the stack
+node* stack,*current; //stack is a pointer to the head of the stack
 unsigned long long int stack_elements;  //counter of stack elements
 unsigned char torus[N][M]; //torus is a 2-dimensional 80x25 character array
 program_counter pc; //program counter is 2 integers that show the pc's location at the torus
@@ -59,18 +58,17 @@ list_node* entry_table;
 //-----------------STACK IMPLEMENTATION----------------//
 //checks if stack is empty
 int isEmpty (){
-  if (stack==NULL) return 1;
+  if (stack_elements==0) return 1;
   else return 0;
 }
 
 //pops an element from the stack
 signed long long int pop() {
   if (!isEmpty()) {
-    signed long long int ret=stack->value;
-    node* next_head= stack->previous;
-    pop_ret=stack->type;
-    free (stack);
-    stack=next_head;
+    signed long long int ret;
+    current--;
+    ret=current->value;
+    pop_ret=current->type;
     stack_elements--;
     return ret;
   }
@@ -83,11 +81,9 @@ signed long long int pop() {
 void push (signed long long int x,bef_type typ) {
   node* new_elem;
   if (stack_elements<(1<<STACKLENGTH)) {
-    new_elem=(node*) malloc(sizeof(node));
+    new_elem=current++;
     new_elem->value=x;
-    new_elem->previous=stack;
     new_elem->type=typ;
-    stack=new_elem;
     stack_elements++;
   }
   else {
@@ -165,12 +161,12 @@ void mark (generation gen){
   heap_node* heap_elem;
   list_node* list_iter;
   node* iter=stack;
-  while (iter!=NULL) {
+  while (iter<current) {
     if (iter->type==Pointer) {
       heap_elem=(heap_node*)iter->value;
       DFS(heap_elem,gen);
     }
-    iter=iter->previous;
+    iter++;
   }
   if (gen==new) {             //for the new generation we have to look also at the entry table
     list_iter=entry_table;    //to see the pointers from old to new generation
@@ -656,7 +652,8 @@ void run (){
       end_label:
         //printf("\nTelos kalo ola kala\n");
         //print_torus();
-        empty_stack();      //at the end we empty the stack and then we call the garbage collector
+        //empty_stack();      //at the end we empty the stack and then we call the garbage collector
+        free(stack);
         empty_entry_table();
         mark(new);
         sweep(new);
@@ -695,6 +692,8 @@ int main(int argc, char const *argv[]) {
   }
   stack_elements=0;
   heap_elements=0;
+  stack=(node*)malloc((1<<STACKLENGTH)*sizeof(node));
+  current=stack;
   init_torus ();
   read_torus(argv[1]);
   // print_torus();
