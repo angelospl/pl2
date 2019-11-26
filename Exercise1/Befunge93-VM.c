@@ -4,13 +4,10 @@
 #define NEXT_INSTRUCTION goto *(void*)(label_tab[(int)(torus[pc.i][pc.j])])
 #define N 25
 #define M 80
+#define STACKLENGTH 20
 
 
 //-------------------USEFUL STRUCTS--------------------//
-typedef struct node {
-  signed long int value;
-  struct node* previous;
-} node;
 
 typedef struct prog {
   int i;
@@ -20,26 +17,25 @@ typedef struct prog {
 typedef enum direction{up,right,down,left} direction;
 
 //------------------GLOBAL VARIABLES--------------------//
-node* stack; //stack is a pointer to the head of the stack
+signed long int* stack,*current; //stack is a pointer to the head of the stack
 unsigned char torus[N][M]; //torus is a 2-dimensional 80x25 character array
 program_counter pc; //program counter is 2 integers that show the pc's location at the torus
 direction pc_movement;  //the direction pc is going
+unsigned long long int stack_elements;
 
 //-----------------STACK IMPLEMENTATION----------------//
 //checks if stack is empty
 int isEmpty (){
-  if (stack==NULL) return 1;
+  if (stack_elements==0) return 1;
   else return 0;
 }
 
 //pops an element from the stack
 signed long int pop() {
   if (!isEmpty()) {
-    signed long int ret=stack->value;
-    node* next_head= stack->previous;
-    free (stack);
-    stack=next_head;
-    return ret;
+    current--;
+    stack_elements--;
+    return *current;
   }
   else {
     return 0;
@@ -48,10 +44,15 @@ signed long int pop() {
 
 //pushes a signed long int to the stack
 void push (signed long int x) {
-  node* new_elem = (node*) malloc(sizeof(node));
-  new_elem->value=x;
-  new_elem->previous=stack;
-  stack=new_elem;
+  if (stack_elements<(1<<STACKLENGTH)){
+    *current=x;
+    current++;
+    stack_elements++;
+  }
+  else {
+    printf("Stack overflow\n");
+    exit(1);
+  }
 }
 
 void empty_stack(){
@@ -182,8 +183,8 @@ void run (){
     else if (i==126) label_tab[i]=&&input_char_label; // ~
     else label_tab[i]=&&def_label;
   }
-  signed long int val1,val2,x,y,value,cond;
-  int rnd,integ;
+  signed long int val1,val2,x,y,value,cond,integ;
+  int rnd;
   unsigned char c;
   pc.i=0;
   pc.j=0;
@@ -364,8 +365,8 @@ void run (){
         NEXT_INSTRUCTION;
       case '&':
       input_int_label:
-        scanf("%d", &integ);
-        push((signed long int) integ);
+        scanf("%ld", &integ);
+        push(integ);
         pc_move();
         NEXT_INSTRUCTION;
       case '~':
@@ -469,6 +470,9 @@ int main(int argc, char const *argv[]) {
     read_torus(argv[1]);
   }
   // print_torus();
+  stack=(signed long int*)malloc((1<<STACKLENGTH)*sizeof(signed long int));
+  current=stack;
+  stack_elements=0;
   pc_movement=right;  //at start pc is going left to right
   srand(time(0));
   run();
