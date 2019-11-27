@@ -511,11 +511,13 @@ void run (){
       case '.':
       out_int_label:
         printf("%lld ",pop());
+        fflush(stdout);
         pc_move();
         NEXT_INSTRUCTION;
       case ',':
       out_char_label:
         printf("%c",(char)pop());
+        fflush(stdout);
         pc_move();
         NEXT_INSTRUCTION;
       case '#':
