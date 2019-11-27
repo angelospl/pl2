@@ -7,8 +7,8 @@
 #define N 25
 #define M 80
 #define STACKLENGTH 20
-#define HEAPLENGTH 24
-#define OLDHEAPLENGTH 23
+#define HEAPLENGTH 3
+#define OLDHEAPLENGTH 1
 
 //-------------------USEFUL STRUCTS--------------------//
 typedef enum bef_type {Pointer,Integer} bef_type;
@@ -25,8 +25,6 @@ typedef struct heap_node {    //heap_node is a double linked list,
   struct heap_node* tail;     //the tail of the cons cell
   uint8_t marked;             //marked by garbage collection
   generation gen;         //will be used for generational algorithm
-  struct heap_node* next;     //the pointers the double linking
-  struct heap_node* previous;
 } heap_node;
 
 typedef struct list_node {
@@ -47,7 +45,7 @@ unsigned long long int stack_elements;  //counter of stack elements
 unsigned char torus[N][M]; //torus is a 2-dimensional 80x25 character array
 program_counter pc; //program counter is 2 integers that show the pc's location at the torus
 direction pc_movement;  //the direction pc is going
-heap_node* heap,*freelist,*old_heap;  //heap is a pointer to a heap_node. We Cannot
+heap_node* heap,*freelist,*old_heap,*heap_current,*old_heap_current;  //heap is a pointer to a heap_node. We Cannot
                             //have access to heap elements without having a pointer to them
                             //freelist is the list of the nodes to be garbage collected
 unsigned long long int heap_elements,old_heap_elements; //counter of heap elements
@@ -99,42 +97,27 @@ void empty_stack(){
   }
 }
 
-//-----------------------ENTRY TABLE-------------------------//
-void add_new_entry(heap_node* ptr){
-  list_node* new_node;
-  new_node=(list_node*)malloc(sizeof(list_node));
-  new_node->pointer=ptr;
-  new_node->next=entry_table;
-  entry_table=new_node;
-}
-
-void empty_entry_table () {
-  list_node* node;
-  while (entry_table!=NULL) {
-    node=entry_table;
-    entry_table=entry_table->next;
-    free(node);
-  }
-}
-
 //-----------------------GARBAGE COLLECTION------------------//
 
-//takes a new heap elem and takes it to the old heap
-void grow_old (heap_node* x) {
-  x->gen=old;
-  if (x->next!=NULL) {              //pop from the heap
-    x->next->previous=x->previous;
+//takes a new heap elem and creates a new element at the old heap with same values
+void grow_old (heap_node x) {     //it copies its values
+  heap_node* new_heap_node,*next;
+  if (old_heap_elements<old_heap+(1<<OLDHEAPLENGTH)) {
+    old_heap_current->head=x.head;
+    old_heap_current->tail=x.tail;
+    old_heap_current->marked=0;
+    old_heap_current->gen=old;
+    old_heap_current++;
   }
-  if (x->previous!=NULL) {
-    x->previous->next=x->next;
-  }
-  heap_elements--;
-  x->next=old_heap;               //insert in the old heap
-  x->previous=NULL;
-  if (x->next!=NULL) {
-    x->next->previous=x;
-  }
-  old_heap=x;
+  else {                        //if we have written to all the heap
+    new_heap_node=freelist;     //we must write to the empty spaces (aka freelist)
+    new_heap_node->head=x.head;
+    next=new_heap_node->tail;
+    new_heap_node->tail=x.tail;
+    new_heap_node->marked=0;
+    new_heap_node->gen=old;
+    freelist=next;            //the freelist pointer must move to the next element
+  }                           //since now the previous element is overwritten
   old_heap_elements++;
 }
 
@@ -150,16 +133,12 @@ void DFS (heap_node* x,generation gen){
       DFS(x->tail,gen);
     }
   }
-  // else if (gen==old) {       //if we do gc to the old heap. and we find an element of the new heap
-  //                           //we keep that pointer because it points from older to newer generation
-  //   add_new_entry(x);       //add to the entry list      //PROBABLY SHOULDNT BE DONE HERE
-  // }
+
 }
 
 //iterates through the stack finds pointers and calls dfs on them
 void mark (generation gen){
   heap_node* heap_elem;
-  list_node* list_iter;
   node* iter=stack;
   while (iter<current) {
     if (iter->type==Pointer) {
@@ -168,83 +147,74 @@ void mark (generation gen){
     }
     iter++;
   }
-  if (gen==new) {             //for the new generation we have to look also at the entry table
-    list_iter=entry_table;    //to see the pointers from old to new generation
-    while (list_iter!=NULL) {
-      DFS(list_iter->pointer,gen);
-      list_iter=list_iter->next;
-    }
-  }
 }
 
-//sweeps all garbage marked by the mark function
-void sweep (generation gen) {
-  heap_node* heap_iter,*next;
-  freelist=NULL;
-  if (gen==new) heap_iter=heap;   //checks for generation and iterates the right heap
-  else heap_iter=old_heap;
-  while (heap_iter!=NULL) {     //iterate through the heap
-    next=heap_iter->next;
+//sweeps all garbage in the old heap.Freelist marks positions of the old heap that are available to write to
+void sweep_old () {
+  heap_node* heap_iter,*next,*heap_end;
+  //freelist is a pointer that exists either null or a value
+  heap_iter=old_heap;
+  heap_end=old_heap_current;
+  while (heap_iter<heap_end) {     //iterate through the heap
+    next=heap_iter+1;
     if (heap_iter->marked==1) {
       heap_iter->marked=0;      //unmark
-      if (heap_iter->gen==new) {  //whichever object survives gc becomes old
-        grow_old(heap_iter);
-      }
     }
     else {
-      heap_iter->tail=freelist;
+      heap_iter->tail=freelist;       //makes sense only for old
       freelist=heap_iter;
+      old_heap_elements--;
     }
     heap_iter=next;
   }
   heap_iter=NULL;
-  while (freelist!=NULL) {
-    heap_iter=freelist;
-    freelist=freelist->tail;
-    if (heap_iter->next!=NULL) {                      //pointers have to point to the correct elements after
-      heap_iter->next->previous=heap_iter->previous;  //the collection of a garbage from the heap
+}
+
+void sweep_new(){
+  heap_node* heap_iter,*next,*heap_end;
+  //freelist is a pointer that exists either null or a value
+  heap_iter=heap;
+  heap_end=heap_current;
+  while (heap_iter<heap_end) {     //iterate through the heap
+    next=heap_iter+1;
+    if (heap_iter->marked==1) {
+      heap_iter->marked=0;      //unmark
+      grow_old(*heap_iter);
     }
-    if (heap_iter->previous!=NULL) {
-      heap_iter->previous->next=heap_iter->next;
-    }
-    else heap=heap_iter->next;
-    free(heap_iter);
-    heap_elements--;
-    //printf("mpika\n");
+    //we dont have an else statement here since the new heap is cleared completely
+    //the useful elements grow old. At the end new heap is considered all free space
+    heap_iter=next;
   }
   heap_iter=NULL;
+  heap_current=heap;  //new heap is free space again after the sweep new
+  heap_elements=0;
 }
+
+
 
 //------------------------HEAP FUNCTIONS--------------------//
 
 //inserts to the top of the heap a cons cell (hd,tl). it is unmarked and generation is 0
-void insert (signed long long int hd,heap_node* tl){
-  heap_node* new_heap_node;
-  new_heap_node=(heap_node*)malloc(sizeof(heap_node));
-  new_heap_node->head=hd;
-  new_heap_node->tail=tl;
-  new_heap_node->previous=NULL;
-  new_heap_node->marked=0;
-  new_heap_node->gen=new;
-  new_heap_node->next=heap;
-  if (new_heap_node->next!=NULL) {
-    new_heap_node->next->previous=new_heap_node;
-  }
-  heap=new_heap_node;
-  heap_elements++;
+void insert_new (signed long long int hd,heap_node* tl){
+  heap_current->head=hd;      //add to the next place of the heap
+  heap_current->tail=tl;
+  heap_current->marked=0;
+  heap_current->gen=new;
+  heap_current++;
+
 }
 
 //not used garbage collector is called at the end of the program
 void empty_heap (generation gen) {
-  heap_node* next,*node;
-  if (gen==old) node=old_heap;
-  else node=heap;
-  while (node!=NULL) {
-    next=node->next;
-    free(node);
-    node=next;
-    if (gen==old) old_heap_elements--;
-    else heap_elements--;
+  if (gen==old) {
+    free(old_heap);
+    old_heap_elements=0;
+    old_heap_current=NULL;
+  }
+  else {
+    free(heap);
+    heap_elements=0;
+    heap_current=NULL;
   }
 }
 
@@ -560,31 +530,31 @@ void run (){
         NEXT_INSTRUCTION;
       case 'c':               //pops y x creates cons cell (x,y) and pushes the address to the stack
       cons_label:
+        pc_move();
         cell_ptr=(heap_node*)pop();
         x=pop();
-        insert(x,cell_ptr);
-        push((signed long long int) heap,Pointer);
+        insert_new(x,cell_ptr);
+        push((signed long long int) (heap_current-1),Pointer);
         if (heap_elements+(1<<(OLDHEAPLENGTH))>=1<<(HEAPLENGTH)){
           mark(new);
-          sweep(new);
+          sweep_new();
           if (old_heap_elements>=(1<<OLDHEAPLENGTH)) {
             mark(old);
-            sweep(old);
+            sweep_old();
           }
         }
-        pc_move();
         NEXT_INSTRUCTION;
       case 'h':
       head_label:
+        pc_move();
         heap_ptr=(heap_node*)pop();
         push(heap_ptr->head,Integer);
-        pc_move();
         NEXT_INSTRUCTION;
       case 't':
       tail_label:
+          pc_move();
           heap_ptr=(heap_node*)pop();
           push((signed long long int)heap_ptr->tail,Pointer);
-          pc_move();
           NEXT_INSTRUCTION;
       case '&':
       input_int_label:
@@ -654,11 +624,10 @@ void run (){
         //print_torus();
         //empty_stack();      //at the end we empty the stack and then we call the garbage collector
         free(stack);
-        empty_entry_table();
         mark(new);
-        sweep(new);
+        sweep_new();
         mark(old);
-        sweep(old);
+        sweep_old();
         //empty_heap();
         exit(0);
       case 'z':
@@ -692,11 +661,15 @@ int main(int argc, char const *argv[]) {
   }
   stack_elements=0;
   heap_elements=0;
-  stack=(node*)malloc((1<<STACKLENGTH)*sizeof(node));
+  freelist=NULL;        //init freelist
+  heap=(heap_node*)malloc((1<<HEAPLENGTH)*sizeof(heap_node)); //init heap
+  heap_current=heap;
+  old_heap=(heap_node*)malloc((1<<OLDHEAPLENGTH)*sizeof(heap_node));    //init old heap
+  old_heap_current=old_heap;
+  stack=(node*)malloc((1<<STACKLENGTH)*sizeof(node)); //init stack
   current=stack;
   init_torus ();
   read_torus(argv[1]);
-  // print_torus();
   pc_movement=right;  //at start pc is going left to right
   srand(time(0));
   run();
