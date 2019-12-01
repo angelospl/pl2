@@ -99,24 +99,6 @@ void empty_stack(){
   }
 }
 
-//-----------------------ENTRY TABLE-------------------------//
-void add_new_entry(heap_node* ptr){
-  list_node* new_node;
-  new_node=(list_node*)malloc(sizeof(list_node));
-  new_node->pointer=ptr;
-  new_node->next=entry_table;
-  entry_table=new_node;
-}
-
-void empty_entry_table () {
-  list_node* node;
-  while (entry_table!=NULL) {
-    node=entry_table;
-    entry_table=entry_table->next;
-    free(node);
-  }
-}
-
 //-----------------------GARBAGE COLLECTION------------------//
 
 //takes a new heap elem and takes it to the old heap
@@ -656,7 +638,6 @@ void run (){
         //print_torus();
         //empty_stack();      //at the end we empty the stack and then we call the garbage collector
         free(stack);
-        empty_entry_table();
         mark(new);
         sweep(new);
         mark(old);
