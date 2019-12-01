@@ -8,12 +8,10 @@
 #define M 80
 #define STACKLENGTH 20
 #define HEAPLENGTH 24
-#define OLDHEAPLENGTH 23
 
 //-------------------USEFUL STRUCTS--------------------//
 typedef enum bef_type {Pointer,Integer} bef_type;
 
-typedef enum {old,new} generation;
 
 typedef struct node {
   signed long long int value;
@@ -24,9 +22,6 @@ typedef struct heap_node {    //heap_node is a double linked list,
   signed long long int head;  //the head of the cons cell
   struct heap_node* tail;     //the tail of the cons cell
   uint8_t marked;             //marked by garbage collection
-  generation gen;         //will be used for generational algorithm
-  struct heap_node* next;     //the pointers the double linking
-  struct heap_node* previous;
 } heap_node;
 
 typedef struct list_node {
@@ -46,15 +41,13 @@ node* stack,*current; //stack is a pointer to the head of the stack
 unsigned long long int stack_elements;  //counter of stack elements
 unsigned char torus[N][M]; //torus is a 2-dimensional 80x25 character array
 program_counter pc; //program counter is 2 integers that show the pc's location at the torus
-direction pc_movement;  //the direction pc is going
-heap_node* heap,*freelist,*old_heap;  //heap is a pointer to a heap_node. We Cannot
+heap_node* heap,*heap_current,*freelist;  //heap is a pointer to a heap_node. We Cannot
                             //have access to heap elements without having a pointer to them
                             //freelist is the list of the nodes to be garbage collected
 unsigned long long int heap_elements,old_heap_elements; //counter of heap elements
 bef_type pop_ret;           //stores the type of elements popped from the stack. helps garbage collector
                             //find root nodes
-list_node* entry_table;
-
+int full;
 //-----------------STACK IMPLEMENTATION----------------//
 //checks if stack is empty
 int isEmpty (){
@@ -99,118 +92,52 @@ void empty_stack(){
   }
 }
 
-//-----------------------ENTRY TABLE-------------------------//
-void add_new_entry(heap_node* ptr){
-  list_node* new_node;
-  new_node=(list_node*)malloc(sizeof(list_node));
-  new_node->pointer=ptr;
-  new_node->next=entry_table;
-  entry_table=new_node;
-}
-
-void empty_entry_table () {
-  list_node* node;
-  while (entry_table!=NULL) {
-    node=entry_table;
-    entry_table=entry_table->next;
-    free(node);
-  }
-}
-
 //-----------------------GARBAGE COLLECTION------------------//
 
-//takes a new heap elem and takes it to the old heap
-void grow_old (heap_node* x) {
-  x->gen=old;
-  if (x->next!=NULL) {              //pop from the heap
-    x->next->previous=x->previous;
-  }
-  if (x->previous!=NULL) {
-    x->previous->next=x->next;
-  }
-  heap_elements--;
-  x->next=old_heap;               //insert in the old heap
-  x->previous=NULL;
-  if (x->next!=NULL) {
-    x->next->previous=x;
-  }
-  old_heap=x;
-  old_heap_elements++;
-}
 
 
 //dfs traversal to the nodes of a tree starting from the root nodes
-void DFS (heap_node* x,generation gen){
+void DFS (heap_node* x){
   if (x==NULL) {
     return ;
   }
-  if (gen==x->gen) {
-    if (x->marked==0) {                       //0 means not marked
-      x->marked=1;
-      DFS(x->tail,gen);
-    }
+  if (x->marked==0) {                       //0 means not marked
+    x->marked=1;
+    DFS(x->tail);
   }
-  // else if (gen==old) {       //if we do gc to the old heap. and we find an element of the new heap
-  //                           //we keep that pointer because it points from older to newer generation
-  //   add_new_entry(x);       //add to the entry list      //PROBABLY SHOULDNT BE DONE HERE
-  // }
+
 }
 
 //iterates through the stack finds pointers and calls dfs on them
-void mark (generation gen){
+void mark (){
   heap_node* heap_elem;
-  list_node* list_iter;
   node* iter=stack;
   while (iter<current) {
     if (iter->type==Pointer) {
       heap_elem=(heap_node*)iter->value;
-      DFS(heap_elem,gen);
+      DFS(heap_elem);
     }
     iter++;
   }
-  if (gen==new) {             //for the new generation we have to look also at the entry table
-    list_iter=entry_table;    //to see the pointers from old to new generation
-    while (list_iter!=NULL) {
-      DFS(list_iter->pointer,gen);
-      list_iter=list_iter->next;
-    }
-  }
 }
 
-//sweeps all garbage marked by the mark function
-void sweep (generation gen) {
-  heap_node* heap_iter,*next;
-  freelist=NULL;
-  if (gen==new) heap_iter=heap;   //checks for generation and iterates the right heap
-  else heap_iter=old_heap;
-  while (heap_iter!=NULL) {     //iterate through the heap
-    next=heap_iter->next;
+//sweeps all garbage in the old heap.Freelist marks positions of the old heap that are available to write to
+void sweep () {
+  heap_node* heap_iter,*next,*heap_end;
+  //freelist is a pointer that exists either null or a value
+  heap_iter=heap;
+  heap_end=heap_current;
+  while (heap_iter<heap_end) {     //iterate through the heap
+    next=heap_iter+1;
     if (heap_iter->marked==1) {
       heap_iter->marked=0;      //unmark
-      if (heap_iter->gen==new) {  //whichever object survives gc becomes old
-        grow_old(heap_iter);
-      }
     }
     else {
-      heap_iter->tail=freelist;
+      heap_iter->tail=freelist;       //makes sense only for old
       freelist=heap_iter;
+      heap_elements--;
     }
     heap_iter=next;
-  }
-  heap_iter=NULL;
-  while (freelist!=NULL) {
-    heap_iter=freelist;
-    freelist=freelist->tail;
-    if (heap_iter->next!=NULL) {                      //pointers have to point to the correct elements after
-      heap_iter->next->previous=heap_iter->previous;  //the collection of a garbage from the heap
-    }
-    if (heap_iter->previous!=NULL) {
-      heap_iter->previous->next=heap_iter->next;
-    }
-    else heap=heap_iter->next;
-    free(heap_iter);
-    heap_elements--;
-    //printf("mpika\n");
   }
   heap_iter=NULL;
 }
@@ -218,34 +145,33 @@ void sweep (generation gen) {
 //------------------------HEAP FUNCTIONS--------------------//
 
 //inserts to the top of the heap a cons cell (hd,tl). it is unmarked and generation is 0
-void insert (signed long long int hd,heap_node* tl){
-  heap_node* new_heap_node;
-  new_heap_node=(heap_node*)malloc(sizeof(heap_node));
-  new_heap_node->head=hd;
-  new_heap_node->tail=tl;
-  new_heap_node->previous=NULL;
-  new_heap_node->marked=0;
-  new_heap_node->gen=new;
-  new_heap_node->next=heap;
-  if (new_heap_node->next!=NULL) {
-    new_heap_node->next->previous=new_heap_node;
+heap_node* insert_new (signed long long int hd,heap_node* tl){
+  heap_node* next,*ret;
+  if (full!=1) {
+    heap_current->head=hd;      //add to the next place of the heap
+    heap_current->tail=tl;
+    heap_current->marked=0;
+    heap_current++;
+    heap_elements++;
+    return heap_current-1;
   }
-  heap=new_heap_node;
-  heap_elements++;
+  else {
+    ret=freelist;
+    next=freelist->tail;
+    freelist->head=hd;
+    freelist->tail=tl;
+    freelist->marked=0;
+    freelist=next;
+    heap_elements++;
+    return ret;
+  }
 }
 
 //not used garbage collector is called at the end of the program
-void empty_heap (generation gen) {
-  heap_node* next,*node;
-  if (gen==old) node=old_heap;
-  else node=heap;
-  while (node!=NULL) {
-    next=node->next;
-    free(node);
-    node=next;
-    if (gen==old) old_heap_elements--;
-    else heap_elements--;
-  }
+void empty_heap () {
+    free(heap);
+    heap_elements=0;
+    heap_current=NULL;
 }
 
 //--------------------TORUS HANDLING FUNCTIONS-------------//
@@ -320,7 +246,7 @@ void pc_down (){
 }
 
 
-void pc_move (){
+void pc_move (direction pc_movement){
   if (pc_movement==up) pc_up();
   else if (pc_movement==right) pc_right();
   else if (pc_movement==down) pc_down();
@@ -375,40 +301,41 @@ void run (){
   }
   signed long long int val1,val2,x,y,value,cond,integ;
   heap_node* heap_ptr,*cell_ptr;
+  register direction pc_movement;
   int rnd;
   unsigned char c;
   bef_type typ1,typ2;
   pc.i=0;
   pc.j=0;
-  entry_table=NULL;
+  pc_movement=right;
   while (1) {
     unsigned opcode;
     opcode = torus[pc.i][pc.j];
     switch (opcode) {
       case '+':
       plus_label:
-        pc_move();
+        pc_move(pc_movement);
         x=pop();
         y=pop();
         push(x+y,Integer);
         NEXT_INSTRUCTION;
       case '-':
       minus_label:
-        pc_move();
+        pc_move(pc_movement);
         val2=pop();
         val1=pop();
         push(val1-val2,Integer);
         NEXT_INSTRUCTION;
       case '*':
       mul_label:
-        pc_move();
+        pc_move(pc_movement);
         push(pop()*pop(),Integer);
         NEXT_INSTRUCTION;
       case '/':
       div_label:
         val2=pop();
         val1=pop();
-        pc_move();
+        pc_move(pc_movement);
         if (val2==0) {  //according to specifications the user chooses the result
           scanf("%lld\n",&val2 );
           push(val2,Integer);
@@ -419,7 +346,7 @@ void run (){
       mod_label:
         val2=pop();
         val1=pop();
-        pc_move();
+        pc_move(pc_movement);
         if (val2==0) {
           scanf("%lld\n",&val2 ); //according to specifications the user chooses the result
           push(val2,Integer);
@@ -428,13 +355,13 @@ void run (){
         NEXT_INSTRUCTION;
       case '!':
       not_label:
-        pc_move();
+        pc_move(pc_movement);
         if (pop()==0) push(1,Integer);
         else push(0,Integer);
         NEXT_INSTRUCTION;
       case '`':
       greater_label:
-        pc_move();
+        pc_move(pc_movement);
         val2=pop();
         val1=pop();
         if (val1 > val2) push(1,Integer);
@@ -443,22 +370,22 @@ void run (){
       case '>':
       right_label:
         pc_movement=right;
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '<':
       left_label:
         pc_movement=left;
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '^':
       up_label:
         pc_movement=up;
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case 'v':
       down_label:
         pc_movement=down;
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '?':
       rand_label:
@@ -467,35 +394,35 @@ void run (){
         else if (rnd==1) pc_movement=right;
         else if (rnd==2) pc_movement=down;
         else pc_movement=left;
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '_':
       hor_if_label:
         cond=pop();
         if (cond!=0) pc_movement=left;   //condition is true when is not zero
         else pc_movement=right;
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '|':
       ver_if_label:
         cond=pop();
         if (cond!=0) pc_movement=up;
         else pc_movement=down;
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '"':
       stringmode_off_label:
         goto stringmode_on_label;
       case ':':
       dup_label:
-        pc_move();
+        pc_move(pc_movement);
         x=pop();
         push(x,pop_ret);
         push(x,pop_ret);
         NEXT_INSTRUCTION;
       case '\\':
       swap_label:
-        pc_move();
+        pc_move(pc_movement);
         val2=pop();
         typ2=pop_ret;
         val1=pop();
@@ -505,29 +432,29 @@ void run (){
         NEXT_INSTRUCTION;
       case '$':
       pop_label:
-        pc_move();
+        pc_move(pc_movement);
         pop();
         NEXT_INSTRUCTION;
       case '.':
       out_int_label:
         printf("%lld ",pop());
         fflush(stdout);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case ',':
       out_char_label:
         printf("%c",(char)pop());
         fflush(stdout);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '#':
       bridge_label:
-        pc_move();
-        pc_move();
+        pc_move(pc_movement);
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case ' ':
       space_label:
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case 'g':
       get_label:
@@ -546,7 +473,7 @@ void run (){
         else {      //if x y is out of bounds push(0) .. WIKIPEDIA EUXARISTO EXO OI MIZEROI APO DW
           push(0,Integer);
         }
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case 'p':
       put_label:
@@ -558,97 +485,93 @@ void run (){
           printf("x=%lld y=%lld Target out of bounds\n",x,y);
           exit(1);
         }
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case 'c':               //pops y x creates cons cell (x,y) and pushes the address to the stack
       cons_label:
+        pc_move(pc_movement);
         cell_ptr=(heap_node*)pop();
         x=pop();
-        insert(x,cell_ptr);
-        push((signed long long int) heap,Pointer);
-        if (heap_elements+(1<<(OLDHEAPLENGTH))>=1<<(HEAPLENGTH)){
-          mark(new);
-          sweep(new);
-          if (old_heap_elements>=(1<<OLDHEAPLENGTH)) {
-            mark(old);
-            sweep(old);
-          }
+        push((signed long long int) insert_new(x,cell_ptr),Pointer);
+        if (heap_elements>=(1<<HEAPLENGTH)){
+          full=1;
+          mark();
+          sweep();
         }
-        pc_move();
         NEXT_INSTRUCTION;
       case 'h':
       head_label:
+        pc_move(pc_movement);
         heap_ptr=(heap_node*)pop();
         push(heap_ptr->head,Integer);
-        pc_move();
         NEXT_INSTRUCTION;
       case 't':
       tail_label:
+          pc_move(pc_movement);
           heap_ptr=(heap_node*)pop();
           push((signed long long int)heap_ptr->tail,Pointer);
-          pc_move();
           NEXT_INSTRUCTION;
       case '&':
       input_int_label:
         scanf("%lld", &integ);
         push((signed long long int) integ,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '~':
       input_char_label:
         scanf("%c",&c );
         push((signed long long int) c,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '0':
       num0_label:
         push(0,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '1':
       num1_label:
         push(1,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '2':
       num2_label:
         push(2,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '3':
       num3_label:
         push(3,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '4':
       num4_label:
         push(4,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '5':
       num5_label:
         push(5,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '6':
       num6_label:
         push(6,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '7':
       num7_label:
         push(7,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '8':
       num8_label:
         push(8,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '9':
       num9_label:
         push(9,Integer);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
       case '@':
       end_label:
@@ -656,22 +579,17 @@ void run (){
         //print_torus();
         //empty_stack();      //at the end we empty the stack and then we call the garbage collector
         free(stack);
-        empty_entry_table();
-        mark(new);
-        sweep(new);
-        mark(old);
-        sweep(old);
-        //empty_heap();
+        empty_heap();
         exit(0);
       case 'z':
       stringmode_on_label:
-        pc_move();    //eixe meinei o pc sto stringmodeoff
+        pc_move(pc_movement);    //eixe meinei o pc sto stringmodeoff
         if (torus[pc.i][pc.j]!='"') {
           push((long int) torus[pc.i][pc.j],Integer);
           goto stringmode_on_label;
         }
         else {
-          pc_move();
+          pc_move(pc_movement);
           NEXT_INSTRUCTION;
         }
       default:      //unknown ASCII codes are ignored
@@ -679,7 +597,7 @@ void run (){
         //push(torus[pc.i][pc.j]);
         printf("Error at label tab\n");       //currently if the pc encounters a non-command it terminates the program
         exit(1);
-        pc_move();
+        pc_move(pc_movement);
         NEXT_INSTRUCTION;
     }
   }
@@ -694,12 +612,14 @@ int main(int argc, char const *argv[]) {
   }
   stack_elements=0;
   heap_elements=0;
-  stack=(node*)malloc((1<<STACKLENGTH)*sizeof(node));
+  freelist=NULL;        //init freelist
+  heap=(heap_node*)malloc((1<<HEAPLENGTH)*sizeof(heap_node)); //init heap
+  heap_current=heap;
+  stack=(node*)malloc((1<<STACKLENGTH)*sizeof(node)); //init stack
   current=stack;
+  full=0;
   init_torus ();
   read_torus(argv[1]);
-  // print_torus();
-  pc_movement=right;  //at start pc is going left to right
   srand(time(0));
   run();
   return 0;
