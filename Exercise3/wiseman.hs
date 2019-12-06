@@ -35,9 +35,6 @@ third::(a,b,c)->c
 third(_,_,x)=x
 
 
-memoize::(Int->Int->a)->[[a]]
-memoize f=map (\x-> map (f x) [0..]) [0..]
-
 dp::Int->Int->(Int,Int,Int)
 dp 0 0=(0,1,0)
 dp 0 1=(0,1,0)
@@ -53,13 +50,20 @@ dp i j=((wins ((floor.logBase 2 .fromIntegral)(i+1)) 0 i j),first(dp i (j-1)),se
           | otherwise = wins (winstreak-1) (acc+second(dp (i-(2^winstreak-1)) (j-winstreak))) i j
 
 
-dpstore::[[(Int,Int,Int)]]
-dpstore=memoize dp
+dp_solution n=sum [third (dp n y)| y <-[1..(2^n)+2]]
 
-fastdp::Int->Int->(Int,Int,Int)
-fastdp x y=dpstore !! x !! y
+wins =[2^i-1 | i <- [0..19]] --all points from wins in an infinite list
 
+helper::Int->Int
+helper 0=1
+helper 1=1
+helper n=sum [helper (n-streakpoints) | streakpoints <-wins, streakpoints<=n]
 
+fast_helper= (map helper [0..] !!)
+
+solution::Int->Int
+solution 0=1
+solution n=2*(fast_helper n)
 
 main :: IO ()
 main =
