@@ -68,13 +68,9 @@ solution::Int->Integer
 solution 0=1
 solution n=2*(helper n)
 
-solution_a_b::Int->Int->Integer->Integer
-solution_a_b a b acc=
-  if a==b then
-    (acc `mod` 2019 + solution b `mod`2019) `mod` 2019
-  else
-    solution_a_b (a+1) b ((acc `mod` 2019+(solution a)`mod`2019) `mod` 2019)
-
+solution_diff::Int->Int->Integer
+solution_diff a b=
+  sum [(solution x) `mod` 2019 | x <- [a..b]] `mod` 2019
 
 main :: IO ()
 main =
