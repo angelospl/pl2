@@ -52,18 +52,29 @@ dp i j=((wins ((floor.logBase 2 .fromIntegral)(i+1)) 0 i j),first(dp i (j-1)),se
 
 dp_solution n=sum [third (dp n y)| y <-[1..(2^n)+2]]
 
-wins =[2^i-1 | i <- [0..19]] --all points from wins in an infinite list
+wins =[2^i-1 | i <- [1..19]] --all points from wins in an infinite list
 
-helper::Int->Int
+helper::Int->Integer
 helper 0=1
 helper 1=1
-helper n=sum [helper (n-streakpoints) | streakpoints <-wins, streakpoints<=n]
+helper n=
+  let streaklist= takeWhile (\x -> x <= n) wins in
+  (sum [(fast_helper (n-streakpoints)) `mod` 2019 | streakpoints <-wins, streakpoints<=n]) `mod` 2019
 
+fast_helper::Int->Integer
 fast_helper= (map helper [0..] !!)
 
-solution::Int->Int
+solution::Int->Integer
 solution 0=1
-solution n=2*(fast_helper n)
+solution n=2*(helper n)
+
+solution_a_b::Int->Int->Integer->Integer
+solution_a_b a b acc=
+  if a==b then
+    (acc `mod` 2019 + solution b `mod`2019) `mod` 2019
+  else
+    solution_a_b (a+1) b ((acc `mod` 2019+(solution a)`mod`2019) `mod` 2019)
+
 
 main :: IO ()
 main =
