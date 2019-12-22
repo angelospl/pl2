@@ -452,8 +452,6 @@ void run (){
         //push(torus[pc.i][pc.j]);
         printf("Error at label tab\n");       //currently if the pc encounters a non-command it terminates the program
         exit(1);
-        pc_move();
-        NEXT_INSTRUCTION;
     }
   }
 }
