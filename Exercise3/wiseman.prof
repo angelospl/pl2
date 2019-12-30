@@ -1,23 +1,28 @@
-	Sat Dec 28 21:03 2019 Time and Allocation Profiling Report  (Final)
+	Mon Dec 30 19:08 2019 Time and Allocation Profiling Report  (Final)
 
 	   wiseman +RTS -p -RTS
 
-	total time  =        0.25 secs   (251 ticks @ 1000 us, 1 processor)
-	total alloc = 640,303,872 bytes  (excludes profiling overheads)
+	total time  =        0.01 secs   (6 ticks @ 1000 us, 1 processor)
+	total alloc =   6,626,512 bytes  (excludes profiling overheads)
 
-COST CENTRE MODULE SRC         %time %alloc
+COST CENTRE MODULE SRC                  %time %alloc
 
-MAIN        MAIN   <built-in>  100.0  100.0
+fast        Main   wiseman.hs:12:37-73   83.3   96.6
+MAIN        MAIN   <built-in>            16.7    2.1
 
 
-                                                                      individual      inherited
-COST CENTRE  MODULE                SRC             no.     entries  %time %alloc   %time %alloc
+                                                                                  individual      inherited
+COST CENTRE  MODULE                SRC                         no.     entries  %time %alloc   %time %alloc
 
-MAIN         MAIN                  <built-in>      117          0  100.0  100.0   100.0  100.0
- CAF         Main                  <entire-module> 233          0    0.0    0.0     0.0    0.0
- CAF         GHC.Conc.Signal       <entire-module> 227          0    0.0    0.0     0.0    0.0
- CAF         GHC.IO.Encoding       <entire-module> 217          0    0.0    0.0     0.0    0.0
- CAF         GHC.IO.Encoding.Iconv <entire-module> 215          0    0.0    0.0     0.0    0.0
- CAF         GHC.IO.Handle.FD      <entire-module> 207          0    0.0    0.0     0.0    0.0
- CAF         GHC.IO.Handle.Text    <entire-module> 205          0    0.0    0.0     0.0    0.0
- CAF         Text.Read.Lex         <entire-module> 176          0    0.0    0.0     0.0    0.0
+MAIN         MAIN                  <built-in>                  117          0   16.7    2.1   100.0  100.0
+ fast        Main                  wiseman.hs:12:37-73         234         10   83.3   96.6    83.3   97.1
+  helper     Main                  wiseman.hs:(17,21)-(18,120) 236        204    0.0    0.3     0.0    0.5
+   index     Main                  wiseman.hs:18:45-73         237        636    0.0    0.2     0.0    0.2
+ CAF         Main                  <entire-module>             233          0    0.0    0.0     0.0    0.0
+  fast       Main                  wiseman.hs:12:37-73         235          0    0.0    0.0     0.0    0.0
+ CAF         GHC.Conc.Signal       <entire-module>             227          0    0.0    0.0     0.0    0.0
+ CAF         GHC.IO.Encoding       <entire-module>             217          0    0.0    0.0     0.0    0.0
+ CAF         GHC.IO.Encoding.Iconv <entire-module>             215          0    0.0    0.0     0.0    0.0
+ CAF         GHC.IO.Handle.FD      <entire-module>             207          0    0.0    0.8     0.0    0.8
+ CAF         GHC.IO.Handle.Text    <entire-module>             205          0    0.0    0.0     0.0    0.0
+ CAF         Text.Read.Lex         <entire-module>             176          0    0.0    0.0     0.0    0.0
