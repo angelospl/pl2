@@ -1,5 +1,5 @@
 wiseman: wiseman.hs
-		/opt/ghc/bin/ghc wiseman.hs -O -o wiseman
+		ghc wiseman.hs -O -prof -v -o wiseman
 
 clean:
-	rm *.o *.hi wiseman 
+	rm *.o *.hi wiseman
