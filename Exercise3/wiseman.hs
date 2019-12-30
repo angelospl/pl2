@@ -9,8 +9,8 @@ wins =[2^i-1 | i <- [1..19]] --all points from wins in an infinite list
 solution_diff::([Integer],Integer)->Integer
 solution_diff (lista,m) =
   (sum [(solution x m $! fast_helper) `mod`  m | x <-lista ]) `mod` m
-  where fast_helper={-# SCC fast #-}listArray (0,n-1) $ map helper [0..n]
-            where n=10000
+    where fast_helper={-# SCC fast #-}listArray (0,n-1) $ map helper $! [0..n]
+            where n=1000000
                   helper 0=1
                   helper 1=1
                   helper n={-# SCC helper #-}
