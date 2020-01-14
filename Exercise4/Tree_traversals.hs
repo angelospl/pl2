@@ -1,3 +1,5 @@
+module Tree_traversals where
+
 data Tree a= Node a [Tree a]
   deriving Show
 
@@ -19,7 +21,7 @@ bfn t=t'
         aux::[Int]->Tree a->(Tree (a,Int),[Int])
         aux (k:ks) (Node x ts)= (Node (x,k) ts',k+1:ks')
           where (ts',ks')= auxs ks ts
-        auxs::[Int]->[Tree a]->([Tree (a,Int)],[Int])  
+        auxs::[Int]->[Tree a]->([Tree (a,Int)],[Int])
         auxs ks []=([],ks)
         auxs ks (t:ts)=(t':ts',ks'')
           where (t',ks')=aux ks t
@@ -39,10 +41,3 @@ t2 = Node 'a' [ Node 'b' []
                        ]
             , Node 'd' []
             ]
-
-
-main = do
-  print (dfn t1)
-  print (dfn t2)
-  print (bfn t1)
-  print (bfn t2)
