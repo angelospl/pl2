@@ -8,7 +8,9 @@ wins =[2^i-1 | i <- [1..19]] --all points from wins in an infinite list
 
 solution_diff::(Integer,Integer,Integer)->Array Integer Integer->Integer
 solution_diff (a,b,m) array=
-   (sum [(solution x array) `mod`  m | x <- [a..b]]) `mod` m
+   (sum [(solution x) `mod`  m | x <- [a..b]]) `mod` m
+    where solution 0=1
+          solution x=2*(array!x)
 
 create_array::Integer->Integer->Array Integer Integer
 create_array m maxN= ret
@@ -16,11 +18,6 @@ create_array m maxN= ret
         helper n=
             let streaklist= takeWhile (\x -> x <= n) wins in
             (sum [(ret !(n-streakpoints)) `mod` m | streakpoints <-streaklist]) `mod` m
-
-
-solution::Integer->Array Integer Integer->Integer
-solution 0 _=1
-solution n array=2*(array!n)
 
 
 read_input::Integer->[Integer]->IO [Integer]
