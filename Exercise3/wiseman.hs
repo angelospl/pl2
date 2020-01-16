@@ -6,23 +6,36 @@ import Control.Monad.Cont
 
 wins =[2^i-1 | i <- [1..19]] --all points from wins in an infinite list
 
-solution_diff::([Integer],Integer)->Array Integer Integer->Integer
-solution_diff (lista,m) array=
-   (sum [(solution x array) `mod`  m | x <-lista ]) `mod` m
+solution_diff::(Integer,Integer,Integer)->Array Integer Integer->Integer
+solution_diff (a,b,m) array=
+   (sum [(solution x array) `mod`  m | x <- [a..b]]) `mod` m
 
-create_array::Integer->Array Integer Integer
-create_array m= ret
-  where ret= array (0,999999) ((0,1):(1,2):[(i,helper i)| i<-[2..999999]])
+create_array::Integer->Integer->Array Integer Integer
+create_array m maxN= ret
+  where ret= array (0,maxN) ((0,1):(1,1):[(i,helper i)| i<-[2..maxN]])
         helper n=
             let streaklist= takeWhile (\x -> x <= n) wins in
             (sum [(ret !(n-streakpoints)) `mod` m | streakpoints <-streaklist]) `mod` m
 
 
-solution::Integer->Array Integer Integer
-solution 0 _ _=1
-solution n array=array!n
+solution::Integer->Array Integer Integer->Integer
+solution 0 _=1
+solution n array=2*(array!n)
 
 
+read_input::Integer->[Integer]->IO [Integer]
+read_input n lista =
+  if n==0 then do return lista
+  else do
+    x<- readInts
+    read_input (n-1) (lista++x)
+
+
+print_results::[Integer]->Integer->Array Integer Integer-> IO ()
+print_results [a,b] m array= print $ solution_diff (a,b,m) array
+print_results (a:b:xs) m array= do
+  print $ solution_diff (a,b,m) array
+  print_results xs m array
 
 readInts :: IO [Integer]
 readInts = fmap (map read.words) getLine
@@ -30,3 +43,5 @@ readInts = fmap (map read.words) getLine
 main :: IO ()
 main = do
   [n,m] <- readInts
+  lista <- read_input n []
+  print_results lista m (create_array m (maximum(lista)))
