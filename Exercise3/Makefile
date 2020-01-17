@@ -1,5 +1,5 @@
 wiseman: wiseman.hs
-		ghc wiseman.hs -O -prof -v -o wiseman
+		ghc -prof wiseman.hs -prof -rtsopts -O -o wiseman
 
 clean:
 	rm *.o *.hi wiseman
