@@ -5,7 +5,6 @@ import Data.Array.IArray
 import Data.Char
 import Data.Int
 import Control.Monad.Cont
-import Control.Monad.Fix
 
 wins =[2^i-1 | i <- [1..19]] --all points from wins in an infinite list
 
@@ -17,14 +16,13 @@ solution_diff (a,b,m) array=
 
 create_array::Int64->Int64->IO (Array Int64 Int64)
 create_array m maxN=do
-  arr <- newArray (0,1000000) 0::IO (IOUArray Int64 Int64)
+  arr <- newArray (0,maxN) 0::IO (IOUArray Int64 Int64)
   writeArray arr 0 1
-  writeArray arr 1 1
-  forM_ [0..1000000] $ (\i -> do
+  forM_ [0..maxN] $ (\i -> do
      val <- readArray arr i
      let j_list = takeWhile (\x -> x + i <= maxN ) wins
      forM_ j_list $ (\j -> do
-       prev <-readArray arr j
+       prev <-readArray arr (j+i)
        writeArray arr (j+i) ((val `mod` m) + (prev `mod` m) `mod` m)))
   ret <- freeze arr
   return ret
