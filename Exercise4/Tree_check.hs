@@ -18,9 +18,31 @@ instance Arbitrary a => Arbitrary (Tree a) where
           n <- choose (0, m `div` divider)
           ts <- vectorOf n (arbitrarySizedTree (m `div` divider))
           return (Node t ts)
+  shrink (Node a [])=[]
+  shrink (Node a (x:xs))=
+     --(x:xs)++     --afairw ton idio ton komvo --xwris afairesi komvou nmz kalytera
+    [Node a lista' | lista' <- shrink (x:xs)] --afairw ypodentra
 
+
+foldTree::(a->[b]->b)->Tree a->b
+foldTree f (Node x lst)=f x (map (foldTree f) lst)
+
+--metraei tous komvous tou dentrou
+nodeNum::Tree a->Int
+nodeNum t=length (foldTree (\x -> \lst -> (x:(foldl (++) [] lst))) t)
+
+--koureuei to dentro gia ypsos n. An valoume n=0 pairnoume ti riza
+trimTree::Tree a->Int->Tree a
+trimTree t n= trim_help 0 t
+    where
+      trim_help d (Node a lst)=
+        if d==n then (Node a [])
+          else Node a (map (trim_help (d+1)) lst)
 
 main :: IO ()
 main = do
   x<-generate arbitrary::IO (Tree Int)
   print $ x
+  print $ nodeNum x
+  print $ shrink x
+  print $ trimTree x 0
