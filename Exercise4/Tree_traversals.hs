@@ -27,6 +27,31 @@ bfn t=t'
           where (t',ks')=aux ks t
                 (ts',ks'')= auxs ks' ts
 
+foldTree::(a->[b]->b)->Tree a->b
+foldTree f (Node x lst)=f x (map (foldTree f) lst)
+
+heightTree ::Tree a -> Int
+heightTree t = foldTree help t
+    where help _ [] = 1
+          help _ cl = 1 + (maximum cl)
+
+--epistrefei lista stoixeiwn tou dentrou
+nodesTree::Tree a->[a]
+nodesTree t=foldTree (\x -> \lst -> (x:(foldl (++) [] lst))) t
+
+--metraei tous komvous tou dentrou
+sizeTree::Tree a->Int
+sizeTree t=length $ nodesTree t
+
+--koureuei to dentro gia ypsos n. An valoume n=0 pairnoume ti riza
+trimTree::Tree a->Int->Tree a
+trimTree t n= trim_help 0 t
+    where
+      trim_help d (Node a lst)=
+        if d==n then (Node a [])
+          else Node a (map (trim_help (d+1)) lst)
+
+
 
 --Examples
 t1 = Node 1 [ Node 2 [ Node 3 []

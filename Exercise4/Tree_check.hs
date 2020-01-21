@@ -23,26 +23,39 @@ instance Arbitrary a => Arbitrary (Tree a) where
      --(x:xs)++     --afairw ton idio ton komvo --xwris afairesi komvou nmz kalytera
     [Node a lista' | lista' <- shrink (x:xs)] --afairw ypodentra
 
+--ta dentra diathroun to ypsos tous meta apo tin
+--efarmogi tis f panw tous
+maintainHeightProp::(Tree a->Tree (a,Int))->Tree a->Bool
+maintainHeightProp f t= sizeTree t == sizeTree (f t)
 
-foldTree::(a->[b]->b)->Tree a->b
-foldTree f (Node x lst)=f x (map (foldTree f) lst)
+--h riza twn dentrwn exei panta ton ari8mo 1
+rootNumProp::(Tree a->Tree (a,Int))->Tree a->Bool
+rootNumProp f t=
+  let t' = f t in
+  case (trimTree t' 0) of
+    Node (_,x) _ -> x == 1
 
---metraei tous komvous tou dentrou
-nodeNum::Tree a->Int
-nodeNum t=length (foldTree (\x -> \lst -> (x:(foldl (++) [] lst))) t)
+--to ypsos twn dentrwn einai panta mikrotero h iso apo to mege8os tous
+heightSizeProp::(Tree a->Tree (a,Int))->Tree a->Bool
+heightSizeProp f t= heightTree (f t) <= sizeTree (f t)
 
---koureuei to dentro gia ypsos n. An valoume n=0 pairnoume ti riza
-trimTree::Tree a->Int->Tree a
-trimTree t n= trim_help 0 t
-    where
-      trim_help d (Node a lst)=
-        if d==n then (Node a [])
-          else Node a (map (trim_help (d+1)) lst)
+testProp::(Testable prop)=>prop->IO ()
+testProp x=(quickCheckWith stdArgs {maxSuccess=100,maxShrinks=10} x)
+
+testRoot::(Tree Int->Tree (Int,Int))->IO ()
+testRoot f= testProp (rootNumProp f::Tree Int->Bool)
+
+testHeight::(Tree Int-> Tree (Int,Int))-> IO ()
+testHeight f= testProp (heightSizeProp f)
+
+testMaintain::(Tree Int->Tree (Int,Int))-> IO ()
+testMaintain f = testProp (maintainHeightProp f)
 
 main :: IO ()
 main = do
-  x<-generate arbitrary::IO (Tree Int)
-  print $ x
-  print $ nodeNum x
-  print $ shrink x
-  print $ trimTree x 0
+  testRoot dfn
+  testRoot bfn
+  testHeight dfn
+  testHeight bfn
+  testMaintain dfn
+  testMaintain bfn
