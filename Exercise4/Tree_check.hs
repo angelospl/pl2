@@ -23,6 +23,7 @@ instance Arbitrary a => Arbitrary (Tree a) where
      --(x:xs)++     --afairw ton idio ton komvo --xwris afairesi komvou nmz kalytera
     [Node a lista' | lista' <- shrink (x:xs)] --afairw ypodentra
 
+
 --ta dentra diathroun to ypsos tous meta apo tin
 --efarmogi tis f panw tous
 maintainHeightProp::(Tree a->Tree (a,Int))->Tree a->Bool
@@ -51,6 +52,15 @@ testHeight f= testProp (heightSizeProp f)
 testMaintain::(Tree Int->Tree (Int,Int))-> IO ()
 testMaintain f = testProp (maintainHeightProp f)
 
+mergeProp::(Int->Int->Int)->Tree Int->Tree Int->Bool
+mergeProp f t1 t2= m <= (maximum [h1,h2])
+  where h1 = heightTree t1
+        h2 = heightTree t2
+        m = heightTree (merge f t1 t2)
+
+testMerge::(Int->Int->Int)->IO ()
+testMerge f = testProp (mergeProp f)
+
 main :: IO ()
 main = do
   testRoot dfn
@@ -59,3 +69,4 @@ main = do
   testHeight bfn
   testMaintain dfn
   testMaintain bfn
+  print $ merge (+) t1 t2

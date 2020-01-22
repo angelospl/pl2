@@ -51,18 +51,31 @@ trimTree t n= trim_help 0 t
         if d==n then (Node a [])
           else Node a (map (trim_help (d+1)) lst)
 
+merge::(a->a->a)->Tree a->Tree a->Tree a
+merge f (Node x xs) (Node y [])=Node x xs
+merge f (Node x []) (Node y ys)=Node y ys
+merge f (Node x xs) (Node y ys)=
+  Node (f x y) $ myzipWith (merge f) xs ys
+
+myzipWith :: (a->a->a) -> [a]->[a]->[a]
+myzipWith f= go
+  where
+    go [] x = x
+    go x [] = x
+    go (x:xs) (y:ys) = f x y : go xs ys
+
+
+wrong :: (a->a->a)->Tree a->Tree a->Tree a
+wrong f (Node x tsx) (Node y tsy) = Node (f x y) $ zipWith (wrong f) tsx tsy
 
 
 --Examples
-t1 = Node 1 [ Node 2 [ Node 3 []
-                   , Node 4 []
-                   ]
-          , Node 5 [ Node 6 [] ]
+t1 = Node 1 [ Node 2 [ Node 4 []]
+          , Node 3 [ Node 5 []
+                    ,Node 6 [Node 7 []] ]
           ]
 
-t2 = Node 'a' [ Node 'b' []
-            , Node 'c' [ Node 'e' []
-                       , Node 'f' []
-                       ]
-            , Node 'd' []
-            ]
+t2 = Node 3 [ Node 1 [ Node 5 [ Node 7 []]
+                     , Node 6 [ Node 8 []]]
+            , Node 2 [Node 4 [ Node 9 []
+                             , Node 7 []]]  ]
