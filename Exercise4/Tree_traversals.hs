@@ -3,6 +3,7 @@ module Tree_traversals where
 data Tree a= Node a [Tree a]
   deriving Show
 
+--depth first traversal of tree
 dfn::Tree a -> Tree(a,Int)
 dfn t=fst (aux 1 t)
   where aux::Int->Tree a->(Tree (a,Int),Int)
@@ -14,6 +15,7 @@ dfn t=fst (aux 1 t)
           where (t',k')=aux k t
                 (ts',k'')=auxs k' ts
 
+--bredth first traversal of tree
 bfn::Tree a -> Tree(a,Int)
 bfn t=t'
   where (t',ks') = aux ks t
@@ -27,9 +29,11 @@ bfn t=t'
           where (t',ks')=aux ks t
                 (ts',ks'')= auxs ks' ts
 
+--h fold prosarmosmeni se dentro
 foldTree::(a->[b]->b)->Tree a->b
 foldTree f (Node x lst)=f x (map (foldTree f) lst)
 
+--epistrefei to ypsos tou dentrou
 heightTree ::Tree a -> Int
 heightTree t = foldTree help t
     where help _ [] = 1
@@ -51,20 +55,20 @@ trimTree t n= trim_help 0 t
         if d==n then (Node a [])
           else Node a (map (trim_help (d+1)) lst)
 
+--h zhtoumenei synarthsh merge
 merge::(a->a->a)->Tree a->Tree a->Tree a
 merge f (Node x xs) (Node y [])=Node x xs
 merge f (Node x []) (Node y ys)=Node y ys
 merge f (Node x xs) (Node y ys)=
   Node (f x y) $ myzipWith (merge f) xs ys
+    where myzipWith::(a->a->a)->[a]->[a]->[a]
+          myzipWith f= go
+            where
+              go [] x = x
+              go x [] = x
+              go (x:xs) (y:ys) = f x y : go xs ys
 
-myzipWith :: (a->a->a) -> [a]->[a]->[a]
-myzipWith f= go
-  where
-    go [] x = x
-    go x [] = x
-    go (x:xs) (y:ys) = f x y : go xs ys
-
-
+--h lan8asmeni synartisi pou mas dinetai etoimi
 wrong :: (a->a->a)->Tree a->Tree a->Tree a
 wrong f (Node x tsx) (Node y tsy) = Node (f x y) $ zipWith (wrong f) tsx tsy
 

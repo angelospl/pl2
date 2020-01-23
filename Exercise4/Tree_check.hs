@@ -40,6 +40,25 @@ rootNumProp f t=
 heightSizeProp::(Tree a->Tree (a,Int))->Tree a->Bool
 heightSizeProp f t= heightTree (f t) <= sizeTree (f t)
 
+--idiotita symfwna me tin opoia to merged tree
+--prepei na exei to idio ypsos me to megisto ypsos
+--twn 2 dentrwn pou kanoume merge
+mergeProp::((Int->Int->Int)->Tree Int->Tree Int->Tree Int)->(Int->Int->Int)->Tree Int->Tree Int->Bool
+mergeProp test_f f t1 t2= m == (maximum [h1,h2])
+  where h1 = heightTree t1
+        h2 = heightTree t2
+        m = heightTree (test_f f t1 t2)
+
+--ka8e shrinked tree pou parage i shrink prepei na
+--exei mege8os mikrotero (ari8mo komvwn) apo to arxiko tree
+shrinkProp::Tree Int->Bool
+shrinkProp t = helper heightList
+  where heightList = map sizeTree (shrink t)
+        h1 = sizeTree t
+        helper::[Int]->Bool
+        helper []= True
+        helper (x:xs)= (x < h1) && helper xs
+
 testProp::(Testable prop)=>prop->IO ()
 testProp x=(quickCheckWith stdArgs {maxSuccess=100,maxShrinks=10} x)
 
@@ -52,14 +71,14 @@ testHeight f= testProp (heightSizeProp f)
 testMaintain::(Tree Int->Tree (Int,Int))-> IO ()
 testMaintain f = testProp (maintainHeightProp f)
 
-mergeProp::(Int->Int->Int)->Tree Int->Tree Int->Bool
-mergeProp f t1 t2= m <= (maximum [h1,h2])
-  where h1 = heightTree t1
-        h2 = heightTree t2
-        m = heightTree (merge f t1 t2)
-
 testMerge::(Int->Int->Int)->IO ()
-testMerge f = testProp (mergeProp f)
+testMerge f = testProp (mergeProp merge f)
+
+testWrong::(Int->Int->Int)->IO ()
+testWrong f = testProp (mergeProp wrong f)
+
+testShrink::IO ()
+testShrink = testProp shrinkProp
 
 main :: IO ()
 main = do
@@ -69,4 +88,6 @@ main = do
   testHeight bfn
   testMaintain dfn
   testMaintain bfn
-  print $ merge (+) t1 t2
+  testMerge (+)
+  testWrong (+)
+  testShrink
