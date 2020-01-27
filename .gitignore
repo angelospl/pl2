@@ -2,3 +2,4 @@ dist-newstyle/
 *.cabal
 *.o
 *.hi
+*.in
