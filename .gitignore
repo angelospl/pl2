@@ -4,3 +4,5 @@ dist-newstyle/
 *.hi
 *.in
 *.out
+CHANGELOG.md
+Setup.hs
