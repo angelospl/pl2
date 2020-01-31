@@ -1,6 +1,7 @@
 import Data.Char
 import System.IO
 import Text.Read
+import Data.List
 
 data Type  =  Tvar Int | Tfun Type Type                        deriving Eq
 data Expr  =  Evar String | Eabs String Expr | Eapp Expr Expr  deriving Eq
@@ -47,12 +48,10 @@ instance Show Type where
 
 readOne  =  do  s <- getLine
                 let e = read s :: Expr
-                putStrLn ("Parsed: " ++ show e)
-                print $ readExpr e
                 let expr = readExpr e
                 let (bool,typ) = unify (fst (expr)) (snd (expr))
-                print $ bool
-                print $ typ
+                if bool then print $ fixType typ
+                else putStrLn "type error"
 
 
 count n m  =  sequence $ take n $ repeat m
@@ -107,17 +106,27 @@ readExpr expr = (retyp,retconstr)
         fun x = -1
         (retyp,_,retconstr) = helper expr fun 0 []
 
+--checkarei an o typos typ emperiexetai ston deutero typo
 inside::Type->Type->Bool
 typ `inside` (Tvar a) = typ == (Tvar a)
 typ `inside` (Tfun a b) =
   (typ `inside` a || typ `inside` b)
 
+--h unify ylopoiei ton algori8mo W pou dinetai stis diafaneies sel 42
+--an kapoios typos apo tous periorismous vrisketai entos enos allou typou tote 8a exoume type error
+--ka8e fora pou afairei enan periorismo apo ti lista me ta constraints efarmozei kai mia antikatastasi
+--sto finaltype pou 8a einai o telikos typos pou 8a prokypsei apo ton symperasmo . Sygxronws mazi
+--me tin proanafer8eisa antikatastasi pros8etei kai periorismous symfwna me ton algori8mo W
 unify::Type->[(Type,Type)]->(Bool,Type)
 unify finaltype [] = (True,finaltype)
 unify finaltype constr@((t1,t2):ts)
-  | t1 == t2 = unify finaltype ts
-  | not (matchFun t1) && (matchFun t2) &&  not (t1 `inside` t2) = unify (helprepl finaltype t1 t2) (map (replace t1 t2) constr)
-  | not (matchFun t2) && (matchFun t1) && not (t2 `inside` t1) =  unify (helprepl finaltype t2 t1 ) (map (replace t2 t1) constr)
+  | t1 == t2 = unify (helprepl finaltype t1 t2) ts
+  | not (matchFun t1) && (matchFun t2) =
+    if not (t1 `inside` t2) then unify (helprepl finaltype t1 t2) (map (replace t1 t2) constr)
+    else (False,finaltype)
+  | not (matchFun t2) && (matchFun t1) =
+    if not (t2 `inside` t1) then unify (helprepl finaltype t2 t1 ) (map (replace t2 t1) constr)
+    else (False,finaltype)
   | matchFun t1 && matchFun t2 =
     let
       (nt1,nt2) = retFun t1
@@ -126,6 +135,7 @@ unify finaltype constr@((t1,t2):ts)
       unify finaltype ((nt1,ft1):(nt2,ft2):constr)
   | otherwise = unify (helprepl finaltype t1 t2) (map (replace t1 t2) ts)
 
+--voi8itikes synarthseis gia tin unify
 matchFun::Type->Bool
 matchFun (Tvar _) = False
 matchFun (Tfun _ _) = True
@@ -133,6 +143,28 @@ matchFun (Tfun _ _) = True
 retFun::Type->(Type,Type)
 retFun (Tfun t1 t2) = (t1,t2)
 
+--pairnei enan typo kai ton ftiaxnei stin apaitoumeni morfi
+--apo aristera pros ta dexia oi typoi na emfanizontai me au3ousa seira
+fixType::Type->Type
+fixType typ = ((changeType chtyp) . (changeNum 0) . nub . typeList) chtyp
+  where chtyp = changeExpr typ
+        typeList::Type->[Int]
+        typeList (Tvar x) = [x]
+        typeList (Tfun a b) = (typeList a)++(typeList b)
+
+        changeNum::Int->[Int]->[(Int,Int)]
+        changeNum _ []= []
+        changeNum n (x:xs)= (x,n):changeNum (n+1) xs
+
+        changeType::Type->[(Int,Int)]->Type
+        changeType typ [] = typ
+        changeType typ ((oldt,newt):xs) = changeType (helprepl typ (Tvar oldt) (Tvar newt)) xs
+
+        changeExpr::Type->Type
+        changeExpr (Tvar x) = Tvar (-x)
+        changeExpr (Tfun a b) = Tfun (changeExpr a) (changeExpr b)
+
+--voi8itikes synarthseis gia antikatastaseis typwn
 replace::Type->Type->(Type,Type)->(Type,Type)
 replace a repl (t1,t2)= (helprepl t1 a repl,helprepl t2 a repl)
 
