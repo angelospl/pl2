@@ -6,3 +6,5 @@ dist-newstyle/
 *.out
 CHANGELOG.md
 Setup.hs
+*.zip
+*.eventlog
