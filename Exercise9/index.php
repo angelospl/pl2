@@ -1,4 +1,5 @@
 <?php
+  #checks if a number is prime
   function is_prime($num){
     if ($num<=1) return false;
     if ($num<=3) return true;
@@ -8,6 +9,8 @@
     }
     return true;
   }
+
+  #finds the next prime number, given a number num
   function next_prime ($num){
     if ($num<2) return 2;
     $prime = $num;
@@ -18,14 +21,61 @@
     }
     return $prime;
   }
-  function binomial_coefficient($n, $k, $p) {
-    $result = 1;
-    for ($i=1; $i < $k+1; $i++) {
-      $result = $result *($n-$i+1)/$i ;
+
+  #takes an array,called args of 4 integers, a,b,x,y.
+  #for these numbers we have that a*x + b*y = gcd(a,b)
+  #at return we have that args[1] = gcd(a,b), args[2]=x, args[3]=y
+  function gcdExtended($args){
+    if ($args[0] == 0){
+      $args[2] = 0;
+      $args[3] = 1;
+      return $args;      //return b
     }
-    return $result;
+    $ret = gcdExtended(create_args($args[1] % $args[0],$args[0],$args[2],$args[3]));
+    $args[2] = $ret[3]-floor($args[1] / $args[0]) * $ret[2];
+    $args[3] = $ret[2];
+    return $args;
   }
-  $max = array(10,30,50,100,1000,100000,1000000,10000000,1000000000,1000000000);         //array for question's max num
+
+
+  #helper function that takes 4 arguments a,b,x,y and returns an array of those 4
+  function create_args($a,$b,$x,$y) {
+    $args[0] = $a;
+    $args[1] = $b;
+    $args[2] = $x;
+    $args[3] = $y;
+    return $args;
+  }
+
+  #takes a number x and a number p and returns the inverse of x
+  #for which we have that x*x^-1 = 1 mod p
+  function inverse ($x,$p) {
+    $ret = gcdExtended(create_args($x,$p,0,0));
+    if ($ret[2] < 0) return $ret[2]+$p;           #finds modulo of negative x
+    else return $ret[2];
+  }
+
+  #returns a * b mod p
+  function modMult ($a,$b,$p) {
+    return  ($a%$p) * ($b%$p) % $p;
+  }
+
+  #returns n! mod p
+  function modFact ($n,$p) {
+    $res = 1;
+    while ($n > 1) {
+      $res = $res * $n % $p;
+      $n--;
+    }
+    return $res;
+  }
+
+  #finds the binomial_coefficient nCk mod p
+  #fast and effective
+  function binomial_coefficient($n, $k, $p) {
+    return modMult(modMult(modFact($n,$p),inverse(modFact($k,$p),$p),$p),inverse(modFact($n-$k,$p),$p),$p);
+  }
+  $max = array(10,30,50);         //array for question's max num
   session_start();
 
   function generate(){
@@ -49,7 +99,7 @@
   </head>
   <body>
     <?php $_SESSION['answer']=0;
-          $_SESSION['count']=3;
+          $_SESSION['count']=2;
           $_SESSION['gen']=1;
           generate();
     ?>
