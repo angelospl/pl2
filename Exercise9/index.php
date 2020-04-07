@@ -37,7 +37,6 @@
     return $args;
   }
 
-
   #helper function that takes 4 arguments a,b,x,y and returns an array of those 4
   function create_args($a,$b,$x,$y) {
     $args[0] = $a;
