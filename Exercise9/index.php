@@ -56,13 +56,13 @@
 
   #returns a * b mod p
   function modMult ($a,$b,$p) {
-    return  ($a%$p) * ($b%$p) % $p;
+    return  $a * $b % $p;
   }
 
-  #returns n! mod p
-  function modFact ($n,$p) {
+  #returns n!/k! mod p (n > k). for k = 1 returns n! mod p
+  function modFact ($n,$k,$p) {
     $res = 1;
-    while ($n > 1) {
+    while ($n > $k) {
       $res = $res * $n % $p;
       $n--;
     }
@@ -72,22 +72,23 @@
   #finds the binomial_coefficient nCk mod p
   #fast and effective
   function binomial_coefficient($n, $k, $p) {
-    return modMult(modMult(modFact($n,$p),inverse(modFact($k,$p),$p),$p),inverse(modFact($n-$k,$p),$p),$p);
+    return modMult(modFact($n,$k,$p),inverse(modFact($n-$k,1,$p),$p),$p);
   }
-  $max = array(10,30,50);         //array for question's max num
-  session_start();
 
   function generate(){
     global $max;
-    if ($_SESSION['gen'] == 1) {
-      $maxnum = $max[$_SESSION['count']];
-      $_SESSION['K'] = rand(0,$maxnum);
-      $_SESSION['N'] = rand($_SESSION['K'],$maxnum);
-      $_SESSION['P'] = next_prime($_SESSION['N']);
-      $_SESSION['correct'] = binomial_coefficient ($_SESSION['N'],$_SESSION['K'],$_SESSION['P']);
-      $_SESSION['gen']=0;
-    }
+    $maxnum = $max[$_SESSION['count']];
+    $_SESSION['K'] = rand(0,$maxnum);
+    $_SESSION['N'] = rand($_SESSION['K'],$maxnum);
+    $_SESSION['P'] = next_prime($_SESSION['N']);
+    $_SESSION['answer'] = binomial_coefficient ($_SESSION['N'],$_SESSION['K'],$_SESSION['P']);
+    $_SESSION['count']++;
   }
+
+
+  $max = array(10,30,50,100,1000,10000,100000,10000000,100000000,1000000000);         //array for question's max num
+  session_start();
+
   ?>
 
 <!DOCTYPE html>
@@ -96,13 +97,19 @@
     <meta charset="utf-8">
     <title>Binomial Coefficient</title>
   </head>
+  <?php
+    if (!isset($_SESSION['count']) || isset($_SESSION['reset'])) {
+      $_SESSION['count'] = 0;
+      $_SESSION['wrong'] = 0;
+    }
+    if (isset($_SESSION['generate']) || $_SESSION['count'] == 0) {
+      generate();
+    }
+    unset($_SESSION['generate']);
+    unset($_SESSION['reset']);
+?>
   <body>
-    <?php $_SESSION['answer']=0;
-          $_SESSION['count']=2;
-          $_SESSION['gen']=1;
-          generate();
-    ?>
-    <h1>Question <?php echo ($_SESSION['count']+1) ?></h1>
+    <h1>Question <?php echo ($_SESSION['count']) ?></h1>
     <h2>Which is the binomial Coefficient for</h2>
     <h3>N=<span id="N"><?php echo $_SESSION['N']; ?></span></h3>
     <h3>K=<span id="K"><?php echo $_SESSION['K']; ?></span></h3>
@@ -111,13 +118,45 @@
       <table>
         <tr>
           <td>
-            <input type="text" name="answer" id="answer" value="<?php echo $_SESSION['correct']  ?>" autofocus>
+            <input type="text" name="answer" id="answer" value="" autofocus>
           </td>
-          <td>
-            <input type="submit" name="submit" value="Submit!">
-          </td>
+<?php
+  echo $_SESSION['answer'];
+  if (isset($_POST['answer']) && $_POST['answer'] != "") {
+    if ($_POST['answer'] == $_SESSION['answer']) {
+      printf("<td><span class=\"correct\">CORRECT</span></td>\n");
+    }
+    else {
+      printf("<td><span class=\"wrong\">WRONG</span></td>\n");
+      $_SESSION['count']--;
+      $_SESSION['wrong']++;
+    }
+    if ($_SESSION['count'] < 5 ) {        # TO DO IT 1O <--|-|-|-\-|-\-\-\-\-\-\-\-\-\-\
+      $_SESSION['generate'] = 1;
+      printf("<td width=\"16\">&nbsp;</td>\n");
+      printf("<td><input type=\"submit\" name=\"continue\"
+                         id=\"continue\" value=\"Continue!\" /></td>\n");
+    }
+    else {
+      $_SESSION['reset'] = 1;
+      printf("<td><input type=\"submit\" name=\"reset\"
+                         id=\"reset\" value=\"Play Again!\" /></td>\n");
+    }
+  }
+  else {
+    printf("<td><input type=\"submit\" name=\"submit\" value=\"Submit!\"></td>");
+  }
+ ?>
         </tr>
       </table>
+<?php
+  if (isset($_SESSION['reset'])) {
+ ?>
+ <p class="win">You Won</p>
+ <p class="mistakes">You made <?php echo $_SESSION['wrong'] ?> mistakes</p>
+ <?php
+  }
+  ?>
     </form>
   </body>
 </html>
