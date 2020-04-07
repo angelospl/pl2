@@ -93,6 +93,7 @@
 
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
+<link href="ask9.css" rel="stylesheet" type="text/css" />
   <head>
     <meta charset="utf-8">
     <title>Binomial Coefficient</title>
@@ -110,18 +111,20 @@
 ?>
   <body>
     <h1>Question <?php echo ($_SESSION['count']) ?></h1>
-    <h2>Which is the binomial Coefficient for</h2>
-    <h3>N=<span id="N"><?php echo $_SESSION['N']; ?></span></h3>
-    <h3>K=<span id="K"><?php echo $_SESSION['K']; ?></span></h3>
-    <h3>P=<span id="P"><?php echo $_SESSION['P']; ?></span></h3>
+    <h2>Which is the binomial Coefficient for N =<?php echo $_SESSION['N']; ?>,
+        K =<?php echo $_SESSION['K']; ?> mod P =<?php echo $_SESSION['P']; ?>
+    </h2>
     <form class="" action="index.php" method="post">
       <table>
         <tr>
           <td>
-            <input type="text" name="answer" id="answer" value="" autofocus>
+            <input type="text" class="question" name="answer" id="answer" value="" autofocus>
           </td>
 <?php
   echo $_SESSION['answer'];
+  if (isset($_SESSION['cheat'])) {
+    echo $_SESSION['answer'];
+  }
   if (isset($_POST['answer']) && $_POST['answer'] != "") {
     if ($_POST['answer'] == $_SESSION['answer']) {
       printf("<td><span class=\"correct\">CORRECT</span></td>\n");
@@ -134,17 +137,17 @@
     if ($_SESSION['count'] < 5 ) {        # TO DO IT 1O <--|-|-|-\-|-\-\-\-\-\-\-\-\-\-\
       $_SESSION['generate'] = 1;
       printf("<td width=\"16\">&nbsp;</td>\n");
-      printf("<td><input type=\"submit\" name=\"continue\"
+      printf("<td><input type=\"submit\" class=\"submit\" name=\"continue\"
                          id=\"continue\" value=\"Continue!\" /></td>\n");
     }
     else {
       $_SESSION['reset'] = 1;
-      printf("<td><input type=\"submit\" name=\"reset\"
+      printf("<td><input type=\"submit\" class=\"submit\" name=\"reset\"
                          id=\"reset\" value=\"Play Again!\" /></td>\n");
     }
   }
   else {
-    printf("<td><input type=\"submit\" name=\"submit\" value=\"Submit!\"></td>");
+    printf("<td><input type=\"submit\" class=\"submit\" name=\"submit\" value=\"Submit!\"></td>");
   }
  ?>
         </tr>

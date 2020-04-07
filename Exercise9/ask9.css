@@ -1,0 +1,44 @@
+body,td,th {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        font-size: x-large;
+        color: #CCCCCC;
+}
+
+body {
+        background-color: #333399;
+}
+
+.title {
+        font-family: "Courier New", Courier, monospace;
+        font-weight: bold;
+        font-size: 48px;
+        color: #00FF66;
+}
+
+.submit {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 20px;
+}
+.question {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 20px;
+  color: black;
+  height: 24px;
+}
+.number {color: #CCFF33}
+.correct {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 20px;
+  color: #99ee99
+}
+.wrong {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 20px;
+  color: #ee77aa
+}
+
+
+input {
+        background-color: #eeee66;
+        color: #333399;
+}
