@@ -110,15 +110,16 @@
     unset($_SESSION['reset']);
 ?>
   <body>
-    <h1>Question <?php echo ($_SESSION['count']) ?></h1>
-    <h2>Which is the binomial Coefficient for N =<?php echo $_SESSION['N']; ?>,
-        K =<?php echo $_SESSION['K']; ?> mod P =<?php echo $_SESSION['P']; ?>
-    </h2>
+    <h1 class="question">Question <?php echo ($_SESSION['count']) ?></h1>
+    <h2>Which is the binomial Coefficient N,K mod P for</h2>
+      <h3>N=<span id = 'N'><?php echo $_SESSION['N']; ?></span></h3>
+      <h3>K =<span id='K'><?php echo $_SESSION['K']; ?></span></h3>
+      <h3>P =<span id='P'><?php echo $_SESSION['P']; ?></span></h3>x
     <form class="" action="index.php" method="post">
       <table>
         <tr>
           <td>
-            <input type="text" class="question" name="answer" id="answer" value="" autofocus>
+            <input type="text" class="answer" name="answer" id="answer" value="" autofocus>
           </td>
 <?php
   echo $_SESSION['answer'];
@@ -127,18 +128,18 @@
   }
   if (isset($_POST['answer']) && $_POST['answer'] != "") {
     if ($_POST['answer'] == $_SESSION['answer']) {
-      printf("<td><span class=\"correct\">CORRECT</span></td>\n");
+      printf("<td><span class=\"right\">RIGHT</span></td>\n");
     }
     else {
       printf("<td><span class=\"wrong\">WRONG</span></td>\n");
       $_SESSION['count']--;
       $_SESSION['wrong']++;
     }
-    if ($_SESSION['count'] < 5 ) {        # TO DO IT 1O <--|-|-|-\-|-\-\-\-\-\-\-\-\-\-\
+    if ($_SESSION['count'] < 10 ) {        # TO DO IT 1O <--|-|-|-\-|-\-\-\-\-\-\-\-\-\-\
       $_SESSION['generate'] = 1;
       printf("<td width=\"16\">&nbsp;</td>\n");
       printf("<td><input type=\"submit\" class=\"submit\" name=\"continue\"
-                         id=\"continue\" value=\"Continue!\" /></td>\n");
+                         id=\"again\" value=\"Continue!\" /></td>\n");
     }
     else {
       $_SESSION['reset'] = 1;

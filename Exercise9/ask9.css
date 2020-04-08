@@ -19,14 +19,14 @@ body {
   font-family: "Courier New", Courier, monospace;
   font-size: 20px;
 }
-.question {
+.answer {
   font-family: "Courier New", Courier, monospace;
   font-size: 20px;
   color: black;
   height: 24px;
 }
 .number {color: #CCFF33}
-.correct {
+.right {
   font-family: "Courier New", Courier, monospace;
   font-size: 20px;
   color: #99ee99
