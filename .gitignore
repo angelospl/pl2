@@ -8,3 +8,7 @@ CHANGELOG.md
 Setup.hs
 *.zip
 *.eventlog
+*.tex
+*.aux
+*.log
+*.synctex.gz
