@@ -1,5 +1,7 @@
 import Serialcore
 ---------------------------serial--------------------------
+calc_results::[(Integer,Integer,Integer)]->[Integer]
+calc_results xs = map simple_calc xs
 
 main:: IO ()
 main = do
