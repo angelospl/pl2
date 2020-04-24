@@ -12,3 +12,5 @@ Setup.hs
 *.aux
 *.log
 *.synctex.gz
+*.ods
+Exercise6/Report/img
