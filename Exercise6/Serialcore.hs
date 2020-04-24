@@ -12,12 +12,12 @@ read_input n lista =
     x<- readInts
     read_input (n-1) (lista++x)
 
+transform_res::[Integer]->[(Integer,Integer,Integer)]
+transform_res [] = []
+transform_res (n:k:p:xs) = (n,k,p):transform_res xs
+
 calc_results::[(Integer,Integer,Integer)]->[Integer]
 calc_results xs = map simple_calc xs
 
 simple_calc::(Integer,Integer,Integer)->Integer
 simple_calc (n,k,p) = (n `choose` k) `mod` p
-
-transform_res::[Integer]->[(Integer,Integer,Integer)]
-transform_res [] = []
-transform_res (n:k:p:xs) = (n,k,p):transform_res xs

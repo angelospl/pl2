@@ -28,6 +28,6 @@ main = do
   [t] <- readInts
   lista <- read_input t []
   --concurrent
-  retlst <- conc_sum (transform_res lista)
-  retlst2 <- mapM takeMVar retlst
-  mapM_ print retlst2
+  mvar_list <- conc_sum (transform_res lista)
+  result_list <- mapM takeMVar mvar_list
+  mapM_ print result_list
