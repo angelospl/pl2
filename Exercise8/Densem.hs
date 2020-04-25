@@ -35,9 +35,11 @@ sem p s = case p of
     where (VI x,xs) = pop s
   Pmul -> (VI (x * y):xs) where
     (VI x,VI y,xs) = pop2 s
-  Pdiv -> (VI (x `div` y):VI (x `mod` y):xs) where
-    (VI x,VI y,xs) = pop2 s
-  Plt -> if x < y then (VB True:xs)
+  Pdiv -> if (x /= 0) then (VI (y `mod` x):VI (y `div` x):xs)
+          else  sem Pnop []                       --terminate program for x ==0
+          where
+            (VI x,VI y,xs) = pop2 s
+  Plt -> if y < x then (VB True:xs)
         else (VB False:xs)
         where
           (VI x,VI y,xs) = pop2 s
@@ -56,7 +58,7 @@ sem p s = case p of
     (_,xs) = pop s
   Pswap -> (y:x:xs) where
     (x,y,xs) = pop2 s
-  Pswap2 -> (z:x:y:zs) where
+  Pswap2 -> (y:z:x:zs) where
     (x,y,ys) = pop2 s
     (z,zs) = pop ys
   Pseq a b -> sem b (sem a s)
@@ -65,11 +67,11 @@ sem p s = case p of
     else sem p2 xs
     where
       (VB x,xs) = pop s
-  Ploop p2 -> fix func xs where
+  Ploop p2 -> fix func s where
     func::((S->S)->(S->S))
-    func f st = if x==True then f (sem p2 st)
-                else xs
-    (VB x,xs) = pop s
+    func f st = case st of
+                  (VB True:ys) -> f (sem p2 ys)
+                  (VB False:ys) -> ys
 
 
 
