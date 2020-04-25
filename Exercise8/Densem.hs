@@ -65,11 +65,14 @@ sem p s = case p of
     else sem p2 xs
     where
       (VB x,xs) = pop s
-  Ploop p2 ->
-    if (x==True) then xs ---------TO CHANGE
-    else xs
-    where
-      (VB x,xs) = pop s
+  Ploop p2 -> fix func xs where
+    func::((S->S)->(S->S))
+    func f st = if x==True then f (sem p2 st)
+                else xs
+    (VB x,xs) = pop s
+
+
+
 
 -- Main function: interpreter
 
