@@ -2,6 +2,7 @@
 from __future__ import print_function
 import sys
 import requests
+import math
 from lxml import html
 
 def create_args (a,b,x,y):
@@ -64,14 +65,14 @@ for i in range (0,10,1):
     print (tree.find_class('question')[0].text)
     (n,k,p) = get_numbers(tree)
     print ("N =",n,"K =",k,"P =",p)
-    answer = binomial_coefficient(int(n),int(k),int(p))
+    answer = int(binomial_coefficient(int(n),int(k),int(p)))
     print ("The answer is",answer)
     myobj = { 'answer': answer,
               'submit': 'Submit!'
      }
     r = s.post(url,data = myobj)
     tree = html.document_fromstring(r.text)
-    if (len(tree.find_class('wrong')) > 1):
+    if (len(tree.find_class('wrong'))):
         print ("Wrong :-(")
     elif (len(tree.find_class('right'))):
         print ("Right :-)")

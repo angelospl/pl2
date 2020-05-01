@@ -32,7 +32,7 @@
       return $args;      //return b
     }
     $ret = gcdExtended(create_args($args[1] % $args[0],$args[0],$args[2],$args[3]));
-    $args[2] = $ret[3]-floor($args[1] / $args[0]) * $ret[2];
+    $args[2] = $ret[3]- intdiv($args[1],$args[0]) * $ret[2];
     $args[3] = $ret[2];
     return $args;
   }
@@ -114,7 +114,7 @@
     <h2>Which is the binomial Coefficient N,K mod P for</h2>
       <h3>N=<span id = 'N'><?php echo $_SESSION['N']; ?></span></h3>
       <h3>K =<span id='K'><?php echo $_SESSION['K']; ?></span></h3>
-      <h3>P =<span id='P'><?php echo $_SESSION['P']; ?></span></h3>x
+      <h3>P =<span id='P'><?php echo $_SESSION['P']; ?></span></h3>
     <form class="" action="index.php" method="post">
       <table>
         <tr>
@@ -122,9 +122,8 @@
             <input type="text" class="answer" name="answer" id="answer" value="" autofocus>
           </td>
 <?php
-  echo $_SESSION['answer'];
-  if (isset($_SESSION['cheat'])) {
-    echo $_SESSION['answer'];
+  if (isset($_POST['cheat'])) {
+    printf("The answer is %d",$_SESSION['answer']);
   }
   if (isset($_POST['answer']) && $_POST['answer'] != "") {
     if ($_POST['answer'] == $_SESSION['answer']) {
@@ -135,7 +134,7 @@
       $_SESSION['count']--;
       $_SESSION['wrong']++;
     }
-    if ($_SESSION['count'] < 10 ) {        # TO DO IT 1O <--|-|-|-\-|-\-\-\-\-\-\-\-\-\-\
+    if ($_SESSION['count'] < 10 ) {        # TO DO IT 1O
       $_SESSION['generate'] = 1;
       printf("<td width=\"16\">&nbsp;</td>\n");
       printf("<td><input type=\"submit\" class=\"submit\" name=\"continue\"
@@ -149,6 +148,7 @@
   }
   else {
     printf("<td><input type=\"submit\" class=\"submit\" name=\"submit\" value=\"Submit!\"></td>");
+    printf("<td><input type=\"submit\" class=\"submit\" name=\"cheat\" id=\"cheat\" value=\"?\" autofocus></td>");
   }
  ?>
         </tr>
