@@ -1,0 +1,6 @@
+@ loop invariant \forall integer k; 0<= k < i ==> (\exists integer l; 0<= l < k && x[l] == x[k] ==> p[x[k]] <= l <  k);
+
+
+@ loop invariant (\forall integer k,l; 0<= k < l < i && x[k] != x[l]) ==> best == \at(best,Pre);  nomizw oti auto einai malakia
+
+@ loop invariant !(\exists integer k,l; 0<= k < l < i && x[k] == x[l]) ==> (\forall integer k,l; 0 <= k < l < i ==> x[k] != x[l]);   isodynamia
