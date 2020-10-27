@@ -24,7 +24,7 @@ read_input::Integer->[Integer]->IO [Integer]
 read_input n lista =
   if n==0 then do return lista
   else do
-    x<- readInts
+    x <- readInts
     read_input (n-1) (lista++x)
 
 
