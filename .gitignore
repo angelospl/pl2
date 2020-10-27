@@ -16,3 +16,5 @@ Setup.hs
 *.ods#
 Exercise6/Report/img
 .frama-c
+
+.vscode
