@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -O #-}
+
 import Data.Bits (shiftR)
 import Data.List
 
